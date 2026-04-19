@@ -5,7 +5,7 @@ import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
 import matter from "gray-matter";
 import { buildPrompt } from "./prompt-builder.js";
-import type { AgentConfig, TaskFile, TaskFrontmatter } from "../types.js";
+import type { AgentConfig, TaskFile, TaskFrontmatter, PRReviewContext } from "../types.js";
 
 let tmp: string;
 
@@ -163,5 +163,48 @@ describe("buildPrompt", () => {
     const { userPrompt } = buildPrompt(agentConfig, tasksDir);
     expect(userPrompt).toContain("Backlog task");
     expect(userPrompt).toContain("Done task");
+  });
+
+  it("includes review context when provided", () => {
+    const { agentConfig, tasksDir } = setup();
+    const review: PRReviewContext = {
+      pr: {
+        number: 42,
+        title: "vteam: Fix null check in auth",
+        branch: "vteam/fix-null-check",
+        url: "https://github.com/org/repo/pull/42",
+      },
+      comments: [
+        {
+          author: "reviewer1",
+          body: "This approach won't work for concurrent requests.",
+          path: "src/auth.ts",
+          line: 45,
+          createdAt: "2026-04-19T10:00:00Z",
+        },
+        {
+          author: "reviewer2",
+          body: "Test coverage is insufficient.",
+          createdAt: "2026-04-19T11:00:00Z",
+        },
+      ],
+    };
+
+    const { userPrompt } = buildPrompt(agentConfig, tasksDir, undefined, review);
+    expect(userPrompt).toContain("Pull Request");
+    expect(userPrompt).toContain("vteam: Fix null check in auth");
+    expect(userPrompt).toContain("vteam/fix-null-check");
+    expect(userPrompt).toContain("https://github.com/org/repo/pull/42");
+    expect(userPrompt).toContain("reviewer1 on `src/auth.ts:45`");
+    expect(userPrompt).toContain("concurrent requests");
+    expect(userPrompt).toContain("reviewer2");
+    expect(userPrompt).toContain("Test coverage");
+  });
+
+  it("omits review section when no review provided", () => {
+    const { agentConfig, tasksDir } = setup();
+    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+    expect(userPrompt).not.toContain("Pull Request");
+    expect(userPrompt).not.toContain("Review Comments");
   });
 });

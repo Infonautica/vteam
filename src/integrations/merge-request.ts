@@ -18,8 +18,21 @@ export function createMergeRequest(options: MROptions): string {
   return createGitLabMR(options);
 }
 
+function ensureGitHubLabels(labels: string[], cwd: string): void {
+  for (const label of labels) {
+    try {
+      execSync(`gh label create ${shellEscape(label)} --color EDEDED`, {
+        cwd,
+        stdio: "pipe",
+      });
+    } catch {
+      // Label already exists — expected
+    }
+  }
+}
+
 function createGitHubPR(options: MROptions): string {
-  const baseArgs = [
+  const args = [
     "pr",
     "create",
     "--head",
@@ -33,26 +46,30 @@ function createGitHubPR(options: MROptions): string {
   ];
 
   if (options.labels?.length) {
-    try {
-      const args = [...baseArgs, "--label", options.labels.join(",")];
-      const result = execSync(`gh ${args.map(shellEscape).join(" ")}`, {
-        cwd: options.cwd,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      return result.trim();
-    } catch {
-      // Labels may not exist in the repo — retry without them
-    }
+    ensureGitHubLabels(options.labels, options.cwd);
+    args.push("--label", options.labels.join(","));
   }
 
-  const result = execSync(`gh ${baseArgs.map(shellEscape).join(" ")}`, {
+  const result = execSync(`gh ${args.map(shellEscape).join(" ")}`, {
     cwd: options.cwd,
     encoding: "utf-8",
     stdio: ["pipe", "pipe", "pipe"],
   });
 
   return result.trim();
+}
+
+function ensureGitLabLabels(labels: string[], cwd: string): void {
+  for (const label of labels) {
+    try {
+      execSync(
+        `glab label create ${shellEscape(label)} --color '#EDEDED'`,
+        { cwd, stdio: "pipe" },
+      );
+    } catch {
+      // Label already exists — expected
+    }
+  }
 }
 
 function createGitLabMR(options: MROptions): string {
@@ -71,6 +88,7 @@ function createGitLabMR(options: MROptions): string {
   ];
 
   if (options.labels?.length) {
+    ensureGitLabLabels(options.labels, options.cwd);
     for (const label of options.labels) {
       args.push("--label", label);
     }

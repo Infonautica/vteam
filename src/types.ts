@@ -32,8 +32,31 @@ export interface AgentConfig {
   excludePaths?: string[];
   worktree?: boolean;
   taskInput?: boolean;
+  prInput?: boolean;
+  prLabels?: string[];
+  prTriggerLabel?: string;
   autoMR?: boolean;
   mrLabels?: string[];
+}
+
+export interface ReviewComment {
+  author: string;
+  body: string;
+  path?: string;
+  line?: number;
+  createdAt: string;
+}
+
+export interface ReviewablePR {
+  number: number;
+  title: string;
+  branch: string;
+  url: string;
+}
+
+export interface PRReviewContext {
+  pr: ReviewablePR;
+  comments: ReviewComment[];
 }
 
 export interface VteamConfig {

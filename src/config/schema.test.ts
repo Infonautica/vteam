@@ -71,4 +71,38 @@ describe("agentFrontmatterSchema", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("rejects prInput without worktree", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      prInput: true,
+      worktree: false,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts prInput with worktree", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      prInput: true,
+      worktree: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects prInput combined with taskInput", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      prInput: true,
+      taskInput: true,
+      worktree: true,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts prLabels with prInput", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      prInput: true,
+      prLabels: ["vteam"],
+      worktree: true,
+    });
+    expect(result.success).toBe(true);
+  });
 });

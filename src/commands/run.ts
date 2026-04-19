@@ -19,13 +19,27 @@ import {
 } from "../tasks/task-file.js";
 import {
   createWorktree,
+  checkoutWorktree,
   removeWorktree,
   pushBranch,
+  getCommitSha,
 } from "../worktree/manager.js";
 import { createMergeRequest } from "../integrations/merge-request.js";
+import {
+  findReviewablePR,
+  getReviewComments,
+  postPRComment,
+  removePRLabel,
+} from "../integrations/pull-request.js";
 import { loadConfig } from "../config/load.js";
 import { agentFrontmatterSchema } from "../config/schema.js";
-import type { AgentConfig, VteamConfig, RunState, TaskFile } from "../types.js";
+import type {
+  AgentConfig,
+  VteamConfig,
+  RunState,
+  TaskFile,
+  PRReviewContext,
+} from "../types.js";
 
 function resolveAgentConfig(
   name: string,
@@ -99,6 +113,7 @@ function listAgents(cwd: string): void {
       const flags = [
         agent.worktree ? "worktree" : null,
         agent.taskInput ? "taskInput" : null,
+        agent.prInput ? "prInput" : null,
         agent.autoMR ? "autoMR" : null,
       ]
         .filter(Boolean)
@@ -137,6 +152,7 @@ async function runAgent(
   let worktreePath: string | undefined;
   let branchName: string | undefined;
   let task: TaskFile | undefined;
+  let reviewContext: PRReviewContext | undefined;
 
   try {
     console.log("Acquiring lock...");
@@ -170,6 +186,27 @@ async function runAgent(
       );
     }
 
+    if (agent.prInput) {
+      const searchLabels = [
+        ...(agent.prLabels ?? []),
+        ...(agent.prTriggerLabel ? [agent.prTriggerLabel] : []),
+      ];
+      const pr = findReviewablePR(config.platform, searchLabels, cwd);
+      if (!pr) {
+        console.log("No PRs need review response. Nothing to do.");
+        return;
+      }
+      const comments = getReviewComments(config.platform, pr.number, cwd);
+      if (comments.length === 0) {
+        console.log(`PR #${pr.number} has no actionable comments. Skipping.`);
+        return;
+      }
+      reviewContext = { pr, comments };
+      console.log(
+        `Responding to PR #${pr.number}: ${pr.title} (${comments.length} comments)`,
+      );
+    }
+
     const runState: RunState = {
       runId,
       agent: agent.name,
@@ -181,18 +218,29 @@ async function runAgent(
 
     let agentCwd = cwd;
     if (agent.worktree) {
-      console.log("Creating worktree...");
-      const slug = task
-        ? task.filename.replace(/\.md$/, "")
-        : `${agent.name}-${runId}`;
-      const wt = createWorktree(
-        cwd,
-        slug,
-        config.baseBranch,
-        config.worktreeDir,
-      );
-      worktreePath = wt.path;
-      branchName = wt.branch;
+      if (reviewContext) {
+        console.log(`Checking out PR branch: ${reviewContext.pr.branch}...`);
+        const wt = checkoutWorktree(
+          cwd,
+          reviewContext.pr.branch,
+          config.worktreeDir,
+        );
+        worktreePath = wt.path;
+        branchName = wt.branch;
+      } else {
+        console.log("Creating worktree...");
+        const slug = task
+          ? task.filename.replace(/\.md$/, "")
+          : `${agent.name}-${runId}`;
+        const wt = createWorktree(
+          cwd,
+          slug,
+          config.baseBranch,
+          config.worktreeDir,
+        );
+        worktreePath = wt.path;
+        branchName = wt.branch;
+      }
       agentCwd = worktreePath;
       runState.worktreePath = worktreePath;
       runState.branchName = branchName;
@@ -205,6 +253,7 @@ async function runAgent(
       agent,
       tasksDir,
       task,
+      reviewContext,
     );
 
     console.log(`Running ${agent.name} agent...`);
@@ -228,6 +277,34 @@ async function runAgent(
       if (hasCommit) {
         console.log(`\n${agent.name} made changes. Pushing...`);
         pushBranch(worktreePath, branchName);
+
+        if (reviewContext) {
+          try {
+            const sha = getCommitSha(worktreePath);
+            postPRComment(
+              config.platform,
+              reviewContext.pr.number,
+              `Addressed review feedback in \`${sha.slice(0, 7)}\`.`,
+              cwd,
+            );
+            console.log(`Comment posted on PR #${reviewContext.pr.number}.`);
+          } catch (commentErr) {
+            console.error(
+              "Failed to post PR comment:",
+              commentErr instanceof Error ? commentErr.message : commentErr,
+            );
+          }
+
+          if (agent.prTriggerLabel) {
+            removePRLabel(
+              config.platform,
+              reviewContext.pr.number,
+              agent.prTriggerLabel,
+              cwd,
+            );
+            console.log(`Removed label "${agent.prTriggerLabel}" from PR #${reviewContext.pr.number}.`);
+          }
+        }
 
         let mrUrl: string | undefined;
         if (agent.autoMR) {

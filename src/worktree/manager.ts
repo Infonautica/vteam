@@ -31,6 +31,35 @@ export function createWorktree(
   return { path: worktreePath, branch };
 }
 
+export function checkoutWorktree(
+  repoRoot: string,
+  remoteBranch: string,
+  worktreeDir: string,
+): WorktreeSession {
+  const worktreePath = resolve(repoRoot, worktreeDir, remoteBranch);
+
+  execSync(`git fetch origin "${remoteBranch}"`, {
+    cwd: repoRoot,
+    stdio: "pipe",
+  });
+
+  try {
+    execSync(`git branch -D "${remoteBranch}"`, {
+      cwd: repoRoot,
+      stdio: "pipe",
+    });
+  } catch {
+    // Branch doesn't exist locally — expected path
+  }
+
+  execSync(
+    `git worktree add -b "${remoteBranch}" "${worktreePath}" "origin/${remoteBranch}"`,
+    { cwd: repoRoot, stdio: "pipe" },
+  );
+
+  return { path: worktreePath, branch: remoteBranch };
+}
+
 export function removeWorktree(
   repoRoot: string,
   worktreePath: string,

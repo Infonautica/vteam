@@ -24,7 +24,7 @@ Each agent is invoked as a `claude -p` subprocess with:
 - `--permission-mode bypassPermissions` — allows all tools in headless mode
 - `--no-session-persistence` — no session clutter
 
-The orchestrator assembles a layered prompt: AGENT.md (role) → existing task titles (from task file frontmatter) → task content → instructions. The prompt is passed via stdin. Claude uses its own tools (Read, Write, Edit, Bash) to create task files and implement changes directly.
+The orchestrator assembles a layered prompt: AGENT.md (role) → existing task titles (from task file frontmatter) → task content or PR review comments → instructions. The prompt is passed via stdin. Claude uses its own tools (Read, Write, Edit, Bash) to create task files and implement changes directly.
 
 ### Memory management
 
@@ -36,6 +36,8 @@ Each `claude -p` call is stateless. Memory is external:
 ### Worktrees
 
 Agents with `worktree: true` get an isolated git worktree (`git worktree add`). After Claude commits changes in the worktree, the orchestrator pushes the branch, optionally creates an MR (if `autoMR: true`), and cleans up the worktree.
+
+Agents with `prInput: true` use `checkoutWorktree` to check out an existing PR branch (via `git fetch` + `git worktree add` from the remote tracking branch). After Claude commits, the orchestrator pushes to the same branch, posts a summary comment on the PR, and removes the `prTriggerLabel`. Discovery is label-based: the orchestrator searches for open PRs matching all `prLabels` AND the `prTriggerLabel`. The user adds the trigger label when they want changes; the orchestrator removes it after the agent pushes. This avoids GitHub's limitation where PR authors cannot submit "Request changes" reviews on their own PRs.
 
 ### Agent configuration
 
@@ -55,6 +57,9 @@ excludePaths: [node_modules/, dist/]
 
 - `worktree` (default: `false`) — run in an isolated git worktree, push branch on commit
 - `taskInput` (default: `false`) — pick a task from `todo/` queue, manage task lifecycle
+- `prInput` (default: `false`) — pick a PR with pending review feedback, check out its branch (requires `worktree: true`, mutually exclusive with `taskInput`)
+- `prLabels` — labels used to filter PRs when `prInput: true` (e.g. `[vteam]`)
+- `prTriggerLabel` — transient label that signals "this PR needs work" (e.g. `vteam:changes-requested`); removed by the orchestrator after the agent pushes
 - `autoMR` (default: `false`) — create a merge request after pushing (requires `worktree: true`)
 - `scanPaths` / `excludePaths` — scope injected into the user prompt
 - `model` — Claude model override
@@ -87,10 +92,12 @@ src/
 ├── worktree/
 │   └── manager.ts                Git worktree create/remove/list/cleanup
 ├── integrations/
-│   └── merge-request.ts          GitHub (gh) and GitLab (glab) MR creation
+│   ├── merge-request.ts          GitHub (gh) and GitLab (glab) MR creation
+│   └── pull-request.ts           PR review discovery, comment fetching, posting
 └── templates/                    Scaffolding templates copied by vteam init
     ├── code-reviewer.agent.md
     ├── refactorer.agent.md
+    ├── review-responder.agent.md
     └── vteam.config.json
 ```
 
@@ -114,7 +121,7 @@ All three must pass before any commit or PR:
 
 ## v1 scope and constraints
 
-- Ships with two default agents (`code-reviewer` and `refactorer`). Custom agents supported by creating `vteam/agents/<name>/AGENT.md`.
+- Ships with three default agents (`code-reviewer`, `refactorer`, `review-responder`). Custom agents supported by creating `vteam/agents/<name>/AGENT.md`.
 - Supports both GitHub (`gh`) and GitLab (`glab`) — configured via `platform` in `vteam.config.json`.
 - No Slack integration yet.
 - No `--max-budget-usd` caps on agent runs.
@@ -127,7 +134,7 @@ All three must pass before any commit or PR:
 - Task filenames: `YYYY-MM-DD-HH-mm-ss-<slugified-title>.md`
 - Task frontmatter uses YAML via `gray-matter`.
 - Locking uses atomic `mkdir` with stale detection (30 min timeout).
-- Agents without `worktree` (e.g. code-reviewer) write files directly using Claude's tools. Agents with `worktree` + `taskInput` (e.g. refactorer) commit changes; the orchestrator handles pushing, MR creation, and moving task files.
+- Agents without `worktree` (e.g. code-reviewer) write files directly using Claude's tools. Agents with `worktree` + `taskInput` (e.g. refactorer) commit changes; the orchestrator handles pushing, MR creation, and moving task files. Agents with `worktree` + `prInput` (e.g. review-responder) check out existing PR branches, commit changes, push, and post a comment on the PR.
 
 ## Keeping CLAUDE.md current
 

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import matter from "gray-matter";
 import { buildTaskIndex } from "../memory/task-index.js";
-import type { AgentConfig, TaskFile } from "../types.js";
+import type { AgentConfig, TaskFile, PRReviewContext } from "../types.js";
 
 interface PromptParts {
   systemPrompt: string;
@@ -12,6 +12,7 @@ export function buildPrompt(
   agent: AgentConfig,
   tasksDir: string,
   task?: TaskFile,
+  review?: PRReviewContext,
 ): PromptParts {
   const raw = readFileSync(agent.agentMdPath, "utf-8");
   const { content } = matter(raw);
@@ -48,6 +49,40 @@ export function buildPrompt(
     );
   }
 
+  if (review) {
+    sections.push(buildReviewSection(review));
+  }
+
   const userPrompt = sections.join("\n\n");
   return { systemPrompt, userPrompt };
+}
+
+function buildReviewSection(review: PRReviewContext): string {
+  const lines: string[] = [
+    `## Pull Request`,
+    "",
+    `Title: ${review.pr.title}`,
+    `URL: ${review.pr.url}`,
+    `Branch: ${review.pr.branch}`,
+    "",
+    `## Review Comments`,
+    "",
+    "Address each of the following review comments:",
+    "",
+  ];
+
+  for (const comment of review.comments) {
+    if (comment.path) {
+      lines.push(
+        `### ${comment.author} on \`${comment.path}${comment.line ? `:${comment.line}` : ""}\``,
+      );
+    } else {
+      lines.push(`### ${comment.author}`);
+    }
+    lines.push("");
+    lines.push(comment.body);
+    lines.push("");
+  }
+
+  return lines.join("\n");
 }
