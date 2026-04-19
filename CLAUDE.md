@@ -14,7 +14,7 @@ The end user's workflow:
 
 **Core principle: the orchestrator owns all state, Claude owns all intelligence.**
 
-The TypeScript orchestrator handles state transitions — creating worktrees, moving task files, updating `overview.md`, creating MRs. Claude (`-p` mode) handles reasoning — reading code, finding issues, implementing fixes. If Claude crashes mid-run, no state is corrupted because the orchestrator applies changes atomically after Claude finishes.
+The TypeScript orchestrator handles state transitions — creating worktrees, moving task files, creating MRs. Claude (`-p` mode) handles reasoning — reading code, finding issues, implementing fixes. If Claude crashes mid-run, no state is corrupted because the orchestrator applies changes atomically after Claude finishes.
 
 ### How agents run
 
@@ -24,15 +24,14 @@ Each agent is invoked as a `claude -p` subprocess with:
 - `--permission-mode bypassPermissions` — allows all tools in headless mode
 - `--no-session-persistence` — no session clutter
 
-The orchestrator assembles a layered prompt: AGENT.md (role) → overview.md (memory) → task content → instructions. The prompt is passed via stdin. Claude uses its own tools (Read, Write, Edit, Bash) to create task files and implement changes directly.
+The orchestrator assembles a layered prompt: AGENT.md (role) → existing task titles (from task file frontmatter) → task content → instructions. The prompt is passed via stdin. Claude uses its own tools (Read, Write, Edit, Bash) to create task files and implement changes directly.
 
 ### Memory management
 
 Each `claude -p` call is stateless. Memory is external:
 
-- **`vteam/tasks/overview.md`** — flat, append-only list of all tasks. Injected into every agent's prompt so they know what's already been found/done. One line per task, status inline. Minimizes git merge conflicts.
-- **Task files** — individual markdown files with YAML frontmatter in `backlog/`, `todo/`, or `done/`. Self-contained descriptions of findings.
-- **Deduplication** — Claude reads the overview and avoids reporting existing issues. The orchestrator also does a normalized title comparison as a safety net. No hashing.
+- **Task files** — individual markdown files with YAML frontmatter in `backlog/`, `todo/`, or `done/`. Self-contained descriptions of findings. The orchestrator scans these directories at prompt-build time and injects a summary of existing task titles, severities, and statuses into every agent's prompt.
+- **Deduplication** — The prompt builder reads all task files via `buildTaskIndex()` and includes them in the "Existing Tasks" section. Claude avoids reporting duplicates. The orchestrator also does a normalized title comparison as a safety net. No hashing. No separate overview file — task files are the single source of truth.
 
 ### Worktrees
 
@@ -81,7 +80,6 @@ src/
 │   ├── agent-runner.ts           Spawns claude -p, captures output
 │   └── prompt-builder.ts         Assembles layered prompts (single generic function)
 ├── memory/
-│   ├── overview.ts               Read/write/append overview.md
 │   ├── task-index.ts             Scans task dirs, builds title list for dedup
 │   └── lock.ts                   Advisory file locking (atomic mkdir)
 ├── tasks/
@@ -93,7 +91,6 @@ src/
 └── templates/                    Scaffolding templates copied by vteam init
     ├── code-reviewer.agent.md
     ├── refactorer.agent.md
-    ├── overview.md
     └── vteam.config.json
 ```
 

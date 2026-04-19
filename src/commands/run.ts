@@ -17,7 +17,6 @@ import {
   moveTask,
   updateTaskFrontmatter,
 } from "../tasks/task-file.js";
-import { updateOverviewEntryStatus } from "../memory/overview.js";
 import {
   createWorktree,
   removeWorktree,
@@ -131,7 +130,6 @@ async function runAgent(
 ): Promise<void> {
   const runId = generateRunId(agent.name);
   const tasksDir = resolve(cwd, "vteam", "tasks");
-  const overviewPath = resolve(tasksDir, "overview.md");
   const locksDir = resolve(cwd, "vteam", ".locks");
   mkdirSync(locksDir, { recursive: true });
 
@@ -205,7 +203,7 @@ async function runAgent(
     console.log("Building prompt...");
     const { systemPrompt, userPrompt } = buildPrompt(
       agent,
-      overviewPath,
+      tasksDir,
       task,
     );
 
@@ -265,15 +263,6 @@ async function runAgent(
             branch: branchName,
             ...(mrUrl ? { "mr-url": mrUrl } : {}),
           });
-          updateOverviewEntryStatus(
-            overviewPath,
-            task.frontmatter.title,
-            "done",
-            {
-              branch: branchName,
-              ...(mrUrl ? { mrUrl } : {}),
-            },
-          );
           console.log("Task completed.");
         }
       } else {

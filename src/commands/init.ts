@@ -43,7 +43,6 @@ export async function initCommand(): Promise<void> {
 
   copyTemplate("code-reviewer.agent.md", resolve(vteamDir, "agents", "code-reviewer", "AGENT.md"));
   copyTemplate("refactorer.agent.md", resolve(vteamDir, "agents", "refactorer", "AGENT.md"));
-  copyTemplate("overview.md", resolve(vteamDir, "tasks", "overview.md"));
   copyTemplate("vteam.config.json", resolve(vteamDir, "vteam.config.json"));
 
   const gitignorePath = resolve(cwd, ".gitignore");
@@ -66,7 +65,6 @@ export async function initCommand(): Promise<void> {
 
   console.log("  Created vteam/agents/code-reviewer/AGENT.md");
   console.log("  Created vteam/agents/refactorer/AGENT.md");
-  console.log("  Created vteam/tasks/overview.md");
   console.log("  Created vteam/vteam.config.json");
   console.log("\nDone. Edit the AGENT.md files and vteam.config.json to customize.");
 }

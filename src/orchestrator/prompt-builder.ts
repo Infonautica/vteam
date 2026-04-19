@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import matter from "gray-matter";
-import { readOverview } from "../memory/overview.js";
+import { buildTaskIndex } from "../memory/task-index.js";
 import type { AgentConfig, TaskFile } from "../types.js";
 
 interface PromptParts {
@@ -10,20 +10,26 @@ interface PromptParts {
 
 export function buildPrompt(
   agent: AgentConfig,
-  overviewPath: string,
+  tasksDir: string,
   task?: TaskFile,
 ): PromptParts {
   const raw = readFileSync(agent.agentMdPath, "utf-8");
   const { content } = matter(raw);
-  const overview = readOverview(overviewPath);
 
   const systemPrompt = content.trim();
 
   const sections: string[] = [];
 
-  sections.push(
-    `## Team Memory\n\nThe following is the current overview of all known tasks.\n\n${overview}`,
-  );
+  const index = buildTaskIndex(tasksDir);
+  if (index.all.length > 0) {
+    const lines = index.all.map((t) => {
+      const files = t.frontmatter.files.join(", ");
+      return `- [${t.frontmatter.status}] ${t.frontmatter.severity} | ${t.frontmatter.title} | ${files}`;
+    });
+    sections.push(
+      `## Existing Tasks\n\nDo not report issues that already appear in this list.\n\n${lines.join("\n")}`,
+    );
+  }
 
   if (agent.scanPaths?.length || agent.excludePaths?.length) {
     const scopeParts: string[] = [];

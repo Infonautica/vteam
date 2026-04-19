@@ -12,7 +12,7 @@ vteam runs Claude in headless mode (`claude -p`) as a subprocess. Each agent inv
 ┌──────────────────────────────────────────────────────┐
 │                    Orchestrator (TypeScript)          │
 │                                                      │
-│  Owns all state: tasks, overview.md, worktrees, MRs  │
+│  Owns all state: tasks, worktrees, MRs               │
 │                                                      │
 │  ┌──────────┐   ┌──────────┐   ┌──────────────────┐ │
 │  │ Lock mgr │   │ Worktree │   │ MR integration   │ │
@@ -91,7 +91,6 @@ vteam/
 ├── refactorer/
 │   └── AGENT.md                # Refactorer prompt/personality
 └── tasks/
-    ├── overview.md             # Shared memory — all known tasks
     ├── backlog/                # Findings from code reviewer
     ├── todo/                   # Human-triaged tasks ready for implementation
     └── done/                   # Completed tasks
@@ -105,8 +104,8 @@ Will refuse to run if `vteam/` already exists.
 
 1. Acquires an advisory lock (`vteam/.locks/code-reviewer.lock`)
 2. Reads the agent prompt from `vteam/code-reviewer/AGENT.md`
-3. Reads `vteam/tasks/overview.md` (shared memory) and injects it into the prompt so Claude knows what's already been found
-4. Spawns `claude -p` — Claude scans the codebase, creates task files directly in `vteam/tasks/backlog/`, and updates `overview.md`
+3. Scans existing task files in `backlog/`, `todo/`, and `done/` and injects their titles into the prompt so Claude knows what's already been found
+4. Spawns `claude -p` — Claude scans the codebase and creates task files directly in `vteam/tasks/backlog/`
 5. Releases the lock
 
 Claude uses its own file tools (Read, Write, Edit) to create findings. The orchestrator just manages the lifecycle around the Claude invocation.
@@ -116,13 +115,12 @@ Claude uses its own file tools (Read, Write, Edit) to create findings. The orche
 1. Acquires an advisory lock (`vteam/.locks/refactorer.lock`)
 2. Scans `vteam/tasks/todo/` for the highest-severity task (skips tasks that have failed 3+ times)
 3. Creates a git worktree at `.vteam-worktrees/vteam/<task-slug>` branched from the base branch
-4. Builds the prompt with the task description, overview, and agent instructions
+4. Builds the prompt with the task description, existing task titles, and agent instructions
 5. Spawns `claude -p` in the worktree — Claude implements the fix and commits
 6. If Claude committed changes:
    - Force-pushes the branch to origin
    - Creates a pull/merge request via `gh` or `glab` (falls back gracefully if CLI is missing or labels don't exist)
    - Moves the task file from `todo/` to `done/` with completion metadata
-   - Updates `overview.md` status
 7. If Claude made no commit: increments `retry-count` in the task frontmatter
 8. Cleans up the worktree
 9. Releases the lock
@@ -228,22 +226,11 @@ mr-url: https://github.com/org/repo/pull/42
 
 The refactorer picks the highest-severity task first.
 
-## Memory: overview.md
+## Memory and deduplication
 
-`vteam/tasks/overview.md` is a flat, append-only file listing every task ever created. It's injected into every agent's prompt so they know what's been found, what's in progress, and what's done.
+There is no separate overview file. At prompt-build time, the orchestrator scans all task files in `backlog/`, `todo/`, and `done/`, reads their frontmatter titles, and injects a summary list into the agent's prompt. Claude uses this list to avoid reporting duplicate findings.
 
-```markdown
-# Virtual Team — Task Overview
-
-## Tasks
-
-- **[backlog]** 18-04-2026-14:30 | high | Null check missing in auth middleware | `src/middleware/auth.ts` | [→ backlog/18-04-2026-14:30-null-check-auth.md](backlog/18-04-2026-14:30-null-check-auth.md)
-- **[done]** 17-04-2026-09:15 | medium | Unused imports in UserService | `src/services/user.ts` | branch: `vteam/unused-imports` | MR: #12 | [→ done/17-04-2026-09:15-unused-imports-user.md](done/17-04-2026-09:15-unused-imports-user.md)
-```
-
-Deduplication is simple: Claude reads the full overview and avoids reporting existing issues. The orchestrator also does a basic normalized title comparison as a safety net.
-
-There are no size limits on overview.md in v1. If it grows beyond the context window in practice, archiving done entries is the planned mitigation.
+The orchestrator also does a normalized title comparison as a safety net when creating task files programmatically.
 
 ## Agents
 
@@ -252,7 +239,7 @@ v1 ships with two hardcoded agents. Custom agents are planned for v2.
 ### Code reviewer
 
 - Read-only — scans the codebase, never modifies source files
-- Creates task files in `vteam/tasks/backlog/` and updates `overview.md`
+- Creates task files in `vteam/tasks/backlog/`
 - Limited to 5 findings per run (configurable in the AGENT.md prompt)
 - Prioritizes severity: security bugs > performance > code quality
 
@@ -264,7 +251,7 @@ v1 ships with two hardcoded agents. Custom agents are planned for v2.
 - Commits with `vteam: <task-title>` message format
 - Does not push — the orchestrator handles pushing and MR creation
 
-Both agents receive `overview.md` in their prompt, giving them full context of past and present work.
+Both agents receive existing task titles in their prompt, giving them full context of past and present work.
 
 ## Caveats and known limitations
 
@@ -295,8 +282,7 @@ vteam uses advisory file locking via atomic `mkdir` (POSIX guarantees this is at
 
 - **No budget caps**: There's no `--max-budget-usd` on agent runs. A single code-reviewer or refactorer invocation uses one Claude session with no spending limit. Monitor usage via your Anthropic dashboard.
 - **No rollback**: If the refactorer's changes break something, you close the PR. There's no automatic revert mechanism.
-- **Overview.md grows forever**: In v1, completed tasks stay in overview.md. Large histories may eventually hit context limits.
-- **Title-based dedup only**: Duplicate detection relies on Claude reading the overview and a basic string comparison. Similar but differently-worded findings may slip through.
+- **Title-based dedup only**: Duplicate detection relies on Claude reading existing task titles and a basic string comparison. Similar but differently-worded findings may slip through.
 
 ## Development
 

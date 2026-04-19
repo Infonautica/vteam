@@ -83,13 +83,3 @@ export interface RunState {
   error?: string;
 }
 
-export interface OverviewEntry {
-  status: TaskStatus;
-  date: string;
-  severity: Severity;
-  title: string;
-  files: string;
-  taskPath: string;
-  branch?: string;
-  mrUrl?: string;
-}

@@ -25,7 +25,7 @@ Scan the codebase and identify issues including:
 ## Constraints
 
 - You are READ-ONLY for project source code. Do not modify any source files.
-- Do not report issues that are already listed in the overview provided below.
+- Do not report issues that already appear in the "Existing Tasks" list injected into your prompt.
 - Focus on actionable findings — each one should be specific enough for another agent to implement the fix.
 - Every finding MUST include specific file paths and line numbers.
 - Prioritize severity: a critical security bug matters more than a style nit.
@@ -62,15 +62,9 @@ files:
 - `<file:line>` — <what's wrong here>
 ```
 
-After creating task files, update `vteam/tasks/overview.md` by appending one line per finding:
-
-```
-- **[backlog]** <date> | <severity> | <title> | `<primary-file>` | [→ backlog/<filename>](backlog/<filename>)
-```
-
 ## Git
 
-After creating all task files and updating overview.md, create a single commit:
+After creating task files, create a single commit:
 
 - Stage only the files you created/modified in `vteam/tasks/`
 - One commit only
