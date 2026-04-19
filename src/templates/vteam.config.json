@@ -5,6 +5,8 @@
   "agents": {
     "code-reviewer": {
       "model": "sonnet",
+      "worktree": true,
+      "autoMR": true,
       "scanPaths": ["src/"],
       "excludePaths": ["node_modules/", "dist/"]
     },

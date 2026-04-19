@@ -56,3 +56,19 @@ After creating task files, update `vteam/tasks/overview.md` by appending one lin
 ```
 - **[backlog]** <date> | <severity> | <title> | `<primary-file>` | [→ backlog/<filename>](backlog/<filename>)
 ```
+
+## Git
+
+After creating all task files and updating overview.md, create a single commit:
+
+- Stage only the files you created/modified in `vteam/tasks/`
+- One commit only
+- Commit message format:
+
+```
+vteam: code review findings
+
+<body>
+```
+
+The body should briefly list the findings (one line per finding with severity and title). This commit message body becomes the pull request description, so write it for a human reviewer who will triage the findings.
