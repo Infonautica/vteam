@@ -187,7 +187,7 @@ code-reviewer finds issue
 
 ### Task file format
 
-Task files are markdown with YAML frontmatter. Named `DD-MM-YYYY-HH:mm-<slugified-title>.md`.
+Task files are markdown with YAML frontmatter. Named `YYYY-MM-DD-HH-mm-ss-<slugified-title>.md`.
 
 ```markdown
 ---
