@@ -1,3 +1,13 @@
+---
+model: sonnet
+worktree: true
+taskInput: true
+autoMR: true
+mrLabels:
+  - vteam
+  - automated
+---
+
 # Refactorer Agent
 
 You are an expert software engineer working as part of an automated virtual development team.

@@ -40,13 +40,28 @@ Agents with `worktree: true` get an isolated git worktree (`git worktree add`). 
 
 ### Agent configuration
 
-Agents are defined at `vteam/agents/<name>/AGENT.md`. Three config flags in `vteam.config.json` control orchestrator behavior per agent:
+Agents are defined at `vteam/agents/<name>/AGENT.md`. Each AGENT.md uses YAML frontmatter to declare orchestrator behavior:
+
+```yaml
+---
+model: sonnet
+worktree: true
+taskInput: true
+autoMR: true
+mrLabels: [vteam, automated]
+scanPaths: [src/]
+excludePaths: [node_modules/, dist/]
+---
+```
 
 - `worktree` (default: `false`) — run in an isolated git worktree, push branch on commit
 - `taskInput` (default: `false`) — pick a task from `todo/` queue, manage task lifecycle
 - `autoMR` (default: `false`) — create a merge request after pushing (requires `worktree: true`)
+- `scanPaths` / `excludePaths` — scope injected into the user prompt
+- `model` — Claude model override
+- `mrLabels` — labels applied to created MRs
 
-Agents without a config entry use defaults (all flags false) — safest behavior, runs in CWD with no task input. Add custom agents by creating `vteam/agents/<name>/AGENT.md` and optionally adding a config entry.
+The frontmatter is validated via zod on agent load. The markdown body (after frontmatter) becomes the system prompt. `vteam.config.json` contains only global settings (baseBranch, platform, worktreeDir, tasks). Add custom agents by creating `vteam/agents/<name>/AGENT.md` — no config changes needed.
 
 ## Project structure
 
@@ -59,6 +74,9 @@ src/
 │   ├── run.ts                    vteam run <agent> — main orchestration flow
 │   ├── status.ts                 vteam status — task board overview
 │   └── clean.ts                  vteam clean — prune worktrees, stale locks
+├── config/
+│   ├── schema.ts                 Zod schemas for config and agent frontmatter
+│   └── load.ts                   Reads and validates vteam.config.json
 ├── orchestrator/
 │   ├── agent-runner.ts           Spawns claude -p, captures output
 │   └── prompt-builder.ts         Assembles layered prompts (single generic function)

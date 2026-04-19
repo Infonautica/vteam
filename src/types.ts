@@ -40,7 +40,6 @@ export interface VteamConfig {
   baseBranch: string;
   platform: Platform;
   worktreeDir: string;
-  agents: Record<string, Omit<AgentConfig, "name" | "agentMdPath">>;
   tasks: {
     maxRetries: number;
   };

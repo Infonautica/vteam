@@ -34,19 +34,12 @@ describe("loadConfig", () => {
       baseBranch: "main",
       platform: "github",
       worktreeDir: ".vteam-worktrees",
-      agents: {
-        "code-reviewer": {
-          model: "sonnet",
-          scanPaths: ["src/"],
-        },
-      },
       tasks: { maxRetries: 3 },
     });
 
     const config = loadConfig(tmp);
     expect(config.baseBranch).toBe("main");
     expect(config.platform).toBe("github");
-    expect(config.agents["code-reviewer"].model).toBe("sonnet");
     expect(config.tasks.maxRetries).toBe(3);
   });
 
@@ -54,7 +47,6 @@ describe("loadConfig", () => {
     writeConfig({
       platform: "github",
       worktreeDir: ".vteam-worktrees",
-      agents: {},
       tasks: { maxRetries: 3 },
     });
 
@@ -67,25 +59,10 @@ describe("loadConfig", () => {
       baseBranch: "main",
       platform: "bitbucket",
       worktreeDir: ".vteam-worktrees",
-      agents: {},
       tasks: { maxRetries: 3 },
     });
 
     expect(() => loadConfig(tmp)).toThrow("platform");
-  });
-
-  it("throws on autoMR without worktree", () => {
-    writeConfig({
-      baseBranch: "main",
-      platform: "github",
-      worktreeDir: ".vteam-worktrees",
-      agents: {
-        broken: { autoMR: true },
-      },
-      tasks: { maxRetries: 3 },
-    });
-
-    expect(() => loadConfig(tmp)).toThrow("autoMR requires worktree");
   });
 
   it("throws on invalid JSON", () => {
@@ -99,7 +76,6 @@ describe("loadConfig", () => {
   it("reports multiple errors at once", () => {
     writeConfig({
       worktreeDir: ".vteam-worktrees",
-      agents: {},
       tasks: { maxRetries: 3 },
     });
 

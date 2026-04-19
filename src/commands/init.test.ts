@@ -77,7 +77,6 @@ describe("initCommand", () => {
     );
     expect(config.baseBranch).toBe("main");
     expect(config.platform).toBe("github");
-    expect(config.agents["code-reviewer"]).toBeDefined();
-    expect(config.agents.refactorer).toBeDefined();
+    expect(config.agents).toBeUndefined();
   });
 });

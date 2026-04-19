@@ -1,11 +1,13 @@
 import {
   existsSync,
+  readFileSync,
   mkdirSync,
   writeFileSync,
   readdirSync,
 } from "node:fs";
 import { execSync } from "node:child_process";
 import { resolve } from "node:path";
+import matter from "gray-matter";
 import { acquireLock, type FileLock } from "../memory/lock.js";
 import { buildPrompt } from "../orchestrator/prompt-builder.js";
 import { runClaudeAgent } from "../orchestrator/agent-runner.js";
@@ -23,12 +25,12 @@ import {
 } from "../worktree/manager.js";
 import { createMergeRequest } from "../integrations/merge-request.js";
 import { loadConfig } from "../config/load.js";
+import { agentFrontmatterSchema } from "../config/schema.js";
 import type { AgentConfig, VteamConfig, RunState, TaskFile } from "../types.js";
 
 function resolveAgentConfig(
   name: string,
   cwd: string,
-  config: VteamConfig,
 ): AgentConfig {
   const agentDir = resolve(cwd, "vteam", "agents", name);
   const agentMdPath = resolve(agentDir, "AGENT.md");
@@ -37,11 +39,20 @@ function resolveAgentConfig(
     throw new Error(`Agent "${name}" not found at ${agentMdPath}`);
   }
 
-  const configEntry = config.agents[name] ?? {};
+  const raw = readFileSync(agentMdPath, "utf-8");
+  const { data } = matter(raw);
+  const result = agentFrontmatterSchema.safeParse(data);
+  if (!result.success) {
+    const issues = result.error.issues
+      .map((i) => `  - ${i.path.join(".")}: ${i.message}`)
+      .join("\n");
+    throw new Error(`Invalid frontmatter in ${name}/AGENT.md:\n${issues}`);
+  }
+
   return {
     name,
     agentMdPath,
-    ...configEntry,
+    ...result.data,
   };
 }
 
@@ -61,7 +72,7 @@ function generateRunId(agent: string): string {
   return `${ts}-${agent}`;
 }
 
-function listAgents(cwd: string, config: VteamConfig): void {
+function listAgents(cwd: string): void {
   const agentsDir = resolve(cwd, "vteam", "agents");
   if (!existsSync(agentsDir)) {
     console.log("No agents found. Run 'vteam init' first.");
@@ -69,7 +80,7 @@ function listAgents(cwd: string, config: VteamConfig): void {
   }
 
   const entries = readdirSync(agentsDir, { withFileTypes: true });
-  const agents = entries
+  const agentNames = entries
     .filter(
       (e) =>
         e.isDirectory() &&
@@ -77,35 +88,39 @@ function listAgents(cwd: string, config: VteamConfig): void {
     )
     .map((e) => e.name);
 
-  if (agents.length === 0) {
+  if (agentNames.length === 0) {
     console.log("No agents found in vteam/agents/.");
     return;
   }
 
   console.log("Available agents:\n");
-  for (const name of agents) {
-    const cfg = config.agents[name] ?? {};
-    const flags = [
-      cfg.worktree ? "worktree" : null,
-      cfg.taskInput ? "taskInput" : null,
-      cfg.autoMR ? "autoMR" : null,
-    ]
-      .filter(Boolean)
-      .join(", ");
-    console.log(`  ${name}${flags ? `  (${flags})` : ""}`);
+  for (const name of agentNames) {
+    try {
+      const agent = resolveAgentConfig(name, cwd);
+      const flags = [
+        agent.worktree ? "worktree" : null,
+        agent.taskInput ? "taskInput" : null,
+        agent.autoMR ? "autoMR" : null,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      console.log(`  ${name}${flags ? `  (${flags})` : ""}`);
+    } catch {
+      console.log(`  ${name}  (invalid frontmatter)`);
+    }
   }
 }
 
 export async function runCommand(agentName?: string): Promise<void> {
   const cwd = process.cwd();
-  const config = loadConfig(cwd);
 
   if (!agentName) {
-    listAgents(cwd, config);
+    listAgents(cwd);
     return;
   }
 
-  const agent = resolveAgentConfig(agentName, cwd, config);
+  const config = loadConfig(cwd);
+  const agent = resolveAgentConfig(agentName, cwd);
   await runAgent(cwd, config, agent);
 }
 

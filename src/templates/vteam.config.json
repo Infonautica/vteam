@@ -2,22 +2,6 @@
   "baseBranch": "main",
   "platform": "github",
   "worktreeDir": ".vteam-worktrees",
-  "agents": {
-    "code-reviewer": {
-      "model": "sonnet",
-      "worktree": true,
-      "autoMR": true,
-      "scanPaths": ["src/"],
-      "excludePaths": ["node_modules/", "dist/"]
-    },
-    "refactorer": {
-      "model": "sonnet",
-      "worktree": true,
-      "taskInput": true,
-      "autoMR": true,
-      "mrLabels": ["vteam", "automated"]
-    }
-  },
   "tasks": {
     "maxRetries": 3
   }

@@ -18,7 +18,7 @@ afterEach(() => {
 
 function setup(): { agentConfig: AgentConfig; overviewPath: string } {
   const agentMdPath = resolve(tmp, "AGENT.md");
-  writeFileSync(agentMdPath, "# Test Agent\n\nYou are a test agent.", "utf-8");
+  writeFileSync(agentMdPath, "---\nmodel: sonnet\nworktree: true\n---\n\n# Test Agent\n\nYou are a test agent.", "utf-8");
 
   const overviewPath = resolve(tmp, "overview.md");
   writeFileSync(overviewPath, "# Overview\n\n- **[backlog]** existing task", "utf-8");
@@ -90,6 +90,14 @@ describe("buildPrompt", () => {
     expect(userPrompt).toContain("high");
     expect(userPrompt).toContain("src/auth.ts:45");
     expect(userPrompt).toContain("auth module is broken");
+  });
+
+  it("excludes frontmatter from system prompt", () => {
+    const { agentConfig, overviewPath } = setup();
+    const { systemPrompt } = buildPrompt(agentConfig, overviewPath);
+    expect(systemPrompt).not.toContain("model:");
+    expect(systemPrompt).not.toContain("worktree:");
+    expect(systemPrompt).not.toContain("---");
   });
 
   it("omits task section when no task provided", () => {

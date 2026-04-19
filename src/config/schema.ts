@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const agentConfigSchema = z
+export const agentFrontmatterSchema = z
   .object({
     model: z.string().optional(),
     scanPaths: z.array(z.string()).optional(),
@@ -18,10 +18,7 @@ export const vteamConfigSchema = z.object({
   baseBranch: z.string(),
   platform: z.enum(["github", "gitlab"]),
   worktreeDir: z.string(),
-  agents: z.record(z.string(), agentConfigSchema).default({}),
   tasks: z.object({
     maxRetries: z.number().int().nonnegative(),
   }),
 });
-
-export type VteamConfigFromSchema = z.infer<typeof vteamConfigSchema>;

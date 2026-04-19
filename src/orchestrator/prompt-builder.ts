@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import matter from "gray-matter";
 import { readOverview } from "../memory/overview.js";
 import type { AgentConfig, TaskFile } from "../types.js";
 
@@ -12,10 +13,11 @@ export function buildPrompt(
   overviewPath: string,
   task?: TaskFile,
 ): PromptParts {
-  const agentMd = readFileSync(agent.agentMdPath, "utf-8");
+  const raw = readFileSync(agent.agentMdPath, "utf-8");
+  const { content } = matter(raw);
   const overview = readOverview(overviewPath);
 
-  const systemPrompt = agentMd;
+  const systemPrompt = content.trim();
 
   const sections: string[] = [];
 
