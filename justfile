@@ -16,6 +16,7 @@ test-watch:
 
 lint:
     npx tsc --noEmit
+    npx eslint src/
 
 clean:
     rm -rf dist
