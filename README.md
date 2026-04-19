@@ -90,6 +90,8 @@ vteam/
 │   └── AGENT.md                # Code reviewer prompt/personality
 ├── refactorer/
 │   └── AGENT.md                # Refactorer prompt/personality
+├── review-responder/
+│   └── AGENT.md                # Review responder prompt/personality
 └── tasks/
     ├── backlog/                # Findings from code reviewer
     ├── todo/                   # Human-triaged tasks ready for implementation
@@ -125,6 +127,22 @@ Claude uses its own file tools (Read, Write, Edit) to create findings. The orche
 8. Cleans up the worktree
 9. Releases the lock
 
+### `vteam run review-responder`
+
+1. Acquires an advisory lock (`vteam/.locks/review-responder.lock`)
+2. Discovers open PRs that have both the `prLabels` (e.g. `vteam`) and the `prTriggerLabel` (e.g. `vteam:changes-requested`) applied
+3. Checks out the PR branch into an isolated git worktree
+4. Builds a prompt containing all unresolved review comments from the PR
+5. Spawns `claude -p` in the worktree — Claude addresses the feedback, commits the changes, and replies to each comment thread
+6. If Claude committed changes:
+   - Force-pushes the branch to origin
+   - Posts a summary comment on the PR
+   - Removes the `prTriggerLabel` so the agent won't re-process the PR on the next run
+7. Cleans up the worktree
+8. Releases the lock
+
+The intended loop: a reviewer leaves comments on a PR, adds the `vteam:changes-requested` label, and runs `vteam run review-responder`. The agent addresses the feedback, pushes an updated commit, and replies to threads. The reviewer re-reviews the updated PR.
+
 ### `vteam status`
 
 Displays task counts by status (backlog, todo, done), lists in-progress todo items with retry counts, shows active worktrees, and prints recent run IDs.
@@ -135,25 +153,15 @@ Removes orphaned worktrees and breaks stale locks. Run this after a crash or if 
 
 ## Configuration
 
-`vteam/vteam.config.json`:
+### `vteam.config.json`
+
+Global settings live in `vteam/vteam.config.json`:
 
 ```json
 {
   "baseBranch": "main",
   "platform": "github",
   "worktreeDir": ".vteam-worktrees",
-  "agents": {
-    "code-reviewer": {
-      "model": "sonnet",
-      "scanPaths": ["src/"],
-      "excludePaths": ["node_modules/", "dist/"]
-    },
-    "refactorer": {
-      "model": "sonnet",
-      "autoMR": true,
-      "mrLabels": ["vteam", "automated"]
-    }
-  },
   "tasks": {
     "maxRetries": 3
   }
@@ -165,12 +173,36 @@ Removes orphaned worktrees and breaks stale locks. Run this after a crash or if 
 | `baseBranch` | Branch to create worktrees from and target MRs against |
 | `platform` | `"github"` or `"gitlab"` — determines which CLI (`gh` / `glab`) is used for MR creation |
 | `worktreeDir` | Where worktrees are created (relative to repo root). Gitignored. |
-| `agents.<name>.model` | Claude model to use (e.g., `"sonnet"`, `"opus"`, `"haiku"`) |
-| `agents.code-reviewer.scanPaths` | Directories to review (empty = entire repo) |
-| `agents.code-reviewer.excludePaths` | Directories to skip |
-| `agents.refactorer.autoMR` | Set to `false` to skip MR creation (branch is still pushed) |
-| `agents.refactorer.mrLabels` | Labels to apply to MRs. Silently skipped if they don't exist in the repo. |
 | `tasks.maxRetries` | How many times the refactorer retries a failing task before skipping it |
+
+### Agent configuration (AGENT.md frontmatter)
+
+Agent behavior is configured via YAML frontmatter in each agent's `AGENT.md`. The markdown body (after the frontmatter) becomes the agent's system prompt.
+
+```yaml
+---
+model: sonnet
+worktree: true
+taskInput: true
+autoMR: true
+mrLabels: [vteam, automated]
+scanPaths: [src/]
+excludePaths: [node_modules/, dist/]
+---
+```
+
+| Field | Default | Description |
+|---|---|---|
+| `model` | `"sonnet"` | Claude model (`"sonnet"`, `"opus"`, `"haiku"`) |
+| `worktree` | `false` | Run in an isolated git worktree; push branch on commit |
+| `taskInput` | `false` | Pick a task from `todo/`; manage task lifecycle (mutually exclusive with `prInput`) |
+| `prInput` | `false` | Pick a PR with pending review feedback and check out its branch (requires `worktree: true`, mutually exclusive with `taskInput`) |
+| `prLabels` | — | Labels used to filter PRs when `prInput: true` (e.g. `[vteam]`) |
+| `prTriggerLabel` | — | Transient label signalling "this PR needs work" (e.g. `vteam:changes-requested`); removed after the agent pushes |
+| `autoMR` | `false` | Create a pull/merge request after pushing (requires `worktree: true`) |
+| `mrLabels` | — | Labels applied to created MRs (auto-created if they don't exist) |
+| `scanPaths` | — | Directories to review (empty = entire repo) |
+| `excludePaths` | — | Directories to skip |
 
 ## Task lifecycle
 
@@ -234,7 +266,7 @@ The orchestrator also does a normalized title comparison as a safety net when cr
 
 ## Agents
 
-v1 ships with two hardcoded agents. Custom agents are planned for v2.
+vteam ships with three default agents (code-reviewer, refactorer, review-responder). Add custom agents by creating `vteam/agents/<name>/AGENT.md` — no config changes needed.
 
 ### Code reviewer
 
@@ -251,7 +283,15 @@ v1 ships with two hardcoded agents. Custom agents are planned for v2.
 - Commits with `vteam: <task-title>` message format
 - Does not push — the orchestrator handles pushing and MR creation
 
-Both agents receive existing task titles in their prompt, giving them full context of past and present work.
+### Review responder
+
+- Triggered by the `prTriggerLabel` label on an open PR (e.g. `vteam:changes-requested`)
+- Checks out the PR branch in an isolated worktree
+- Reads all unresolved review comments and addresses the feedback
+- Commits changes and replies to each comment thread with an explanation
+- Pushes to the PR branch and removes the trigger label
+
+All agents receive existing task titles in their prompt, giving them full context of past and present work.
 
 ## Caveats and known limitations
 
@@ -275,8 +315,8 @@ vteam uses advisory file locking via atomic `mkdir` (POSIX guarantees this is at
 
 - Requires `gh` (GitHub) or `glab` (GitLab) CLI installed and authenticated.
 - If the CLI is missing, the branch is still pushed — you just need to create the MR manually.
-- If configured labels don't exist in the repository, MR creation retries without labels.
-- Set `autoMR: false` in config to skip MR creation entirely.
+- Labels are auto-created in the repository if they don't already exist.
+- Set `autoMR: false` in the agent's AGENT.md frontmatter to skip MR creation entirely.
 
 ### General
 
