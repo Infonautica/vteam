@@ -241,12 +241,12 @@ async function runRefactorer(
         status: "done",
         completed: new Date().toISOString(),
         branch: branchName,
-        "mr-url": mrUrl,
+        ...(mrUrl ? { "mr-url": mrUrl } : {}),
       });
 
       updateOverviewEntryStatus(overviewPath, task.frontmatter.title, "done", {
         branch: branchName,
-        mrUrl,
+        ...(mrUrl ? { mrUrl } : {}),
       });
 
       console.log("Task completed.");
