@@ -19,13 +19,12 @@ The TypeScript orchestrator handles state transitions — creating worktrees, mo
 ### How agents run
 
 Each agent is invoked as a `claude -p` subprocess with:
-- `--append-system-prompt` — the agent's `AGENT.md` content
-- `--json-schema` — enforces structured JSON output
+- `--append-system-prompt-file` — the agent's `AGENT.md` content (via temp file)
+- `--output-format stream-json` + `--verbose` — real-time streaming of tool calls and text
 - `--permission-mode bypassPermissions` — allows all tools in headless mode
-- `--output-format json` — machine-parseable response
 - `--no-session-persistence` — no session clutter
 
-The orchestrator assembles a layered prompt: AGENT.md (role) → overview.md (memory) → task content → instructions. Claude returns structured JSON validated against the schema. The orchestrator parses it and acts on the results.
+The orchestrator assembles a layered prompt: AGENT.md (role) → overview.md (memory) → task content → instructions. The prompt is passed via stdin. Claude uses its own tools (Read, Write, Edit, Bash) to create task files and implement changes directly.
 
 ### Memory management
 
@@ -52,8 +51,7 @@ src/
 │   └── clean.ts                  vteam clean — prune worktrees, stale locks
 ├── orchestrator/
 │   ├── agent-runner.ts           Spawns claude -p, captures output
-│   ├── prompt-builder.ts         Assembles layered prompts
-│   └── output-parser.ts          Parses Claude's JSON envelope + validates
+│   └── prompt-builder.ts         Assembles layered prompts
 ├── memory/
 │   ├── overview.ts               Read/write/append overview.md
 │   ├── task-index.ts             Scans task dirs, builds title list for dedup
@@ -81,6 +79,14 @@ just test           # vitest
 just clean          # rm -rf dist/
 ```
 
+## Before submitting changes
+
+All three must pass before any commit or PR:
+
+1. **`just test`** — all vitest tests must pass
+2. **`just lint`** — no TypeScript errors, no eslint violations
+3. **`just build`** — clean compilation to dist/
+
 ## v1 scope and constraints
 
 - Two hardcoded agents: `code-reviewer` and `refactorer`. Custom agents are v2.
@@ -96,7 +102,7 @@ just clean          # rm -rf dist/
 - Task filenames: `YYYY-MM-DD-HH-mm-ss-<slugified-title>.md`
 - Task frontmatter uses YAML via `gray-matter`.
 - Locking uses atomic `mkdir` with stale detection (30 min timeout).
-- The orchestrator never lets Claude write to `overview.md` or move task files — it does that itself after parsing Claude's structured output.
+- The code-reviewer agent writes task files and updates overview.md directly using Claude's file tools. The refactorer agent commits changes; the orchestrator handles pushing, MR creation, and moving task files.
 
 ## Dogfooding
 
