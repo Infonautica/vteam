@@ -8,6 +8,7 @@ interface AgentRunOptions {
   userPrompt: string;
   cwd: string;
   model?: string;
+  timeoutMs?: number;
 }
 
 interface AgentRunResult {
@@ -81,6 +82,12 @@ export async function runClaudeAgent(
         env: { ...process.env },
       });
 
+      const timeoutMs = options.timeoutMs ?? 30 * 60 * 1000;
+      const deadline = setTimeout(() => {
+        console.error(`[vteam] Claude subprocess timed out after ${timeoutMs}ms — sending SIGTERM`);
+        proc.kill("SIGTERM");
+      }, timeoutMs);
+
       proc.stdin.write(options.userPrompt);
       proc.stdin.end();
 
@@ -119,6 +126,7 @@ export async function runClaudeAgent(
       });
 
       proc.on("close", (code) => {
+        clearTimeout(deadline);
         if (lineBuffer.trim()) {
           try {
             const event: StreamEvent = JSON.parse(lineBuffer.trim());
