@@ -132,6 +132,20 @@ All three must pass before any commit or PR:
 - Locking uses atomic `mkdir` with stale detection (30 min timeout).
 - Agents without `worktree` (e.g. code-reviewer) write files directly using Claude's tools. Agents with `worktree` + `taskInput` (e.g. refactorer) commit changes; the orchestrator handles pushing, MR creation, and moving task files.
 
+## Keeping CLAUDE.md current
+
+This file is the primary source of truth for how Claude understands vteam. When you make changes that alter vteam's behavior, update the relevant sections of this file in the same commit. Specifically:
+
+- **New or removed CLI commands** — update Commands and project structure
+- **New or changed agent frontmatter fields** — update Agent configuration
+- **Changes to prompt assembly, agent invocation flags, or orchestrator flow** — update Architecture subsections
+- **New or changed config options in `vteam.config.json`** — update Agent configuration or v1 scope
+- **New conventions (file naming, locking, task lifecycle)** — update Conventions
+- **New integrations or platform support** — update v1 scope and constraints
+- **Added, moved, or deleted source files** — update Project structure tree
+
+Do not update CLAUDE.md for internal refactors that don't change external behavior, test additions, or bug fixes that don't alter documented behavior.
+
 ## Dogfooding
 
 This project has a `vteam/` directory that points the code-reviewer and refactorer at its own `src/`. Run `just dev run code-reviewer` to have vteam review itself.
