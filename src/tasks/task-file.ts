@@ -38,9 +38,10 @@ export function generateTaskFilename(title: string): string {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   const date = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
-  const time = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const time = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
   const slug = slugify(title, { lower: true, strict: true });
-  return `${date}-${time}-${slug}.md`;
+  const jitter = Math.random().toString(36).slice(2, 6);
+  return `${date}-${time}-${slug}-${jitter}.md`;
 }
 
 export function createTaskFile(
