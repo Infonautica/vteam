@@ -93,7 +93,7 @@ just clean          # rm -rf dist/
 ## Conventions
 
 - Self-documenting code, no comments unless the why is non-obvious.
-- Task filenames: `DD-MM-YYYY-HH:mm-<slugified-title>.md`
+- Task filenames: `YYYY-MM-DD-HH-mm-ss-<slugified-title>.md`
 - Task frontmatter uses YAML via `gray-matter`.
 - Locking uses atomic `mkdir` with stale detection (30 min timeout).
 - The orchestrator never lets Claude write to `overview.md` or move task files — it does that itself after parsing Claude's structured output.

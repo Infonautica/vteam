@@ -37,7 +37,7 @@ export function listTaskFiles(dir: string): TaskFile[] {
 export function generateTaskFilename(title: string): string {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
-  const date = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
+  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const time = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
   const slug = slugify(title, { lower: true, strict: true });
   const jitter = Math.random().toString(36).slice(2, 6);
