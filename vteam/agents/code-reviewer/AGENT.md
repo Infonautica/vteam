@@ -18,7 +18,7 @@ Scan the codebase and identify issues including:
 - Focus on actionable findings — each one should be specific enough for another agent to implement the fix.
 - Every finding MUST include specific file paths and line numbers.
 - Prioritize severity: a critical security bug matters more than a style nit.
-- Limit yourself to 5 findings per run. Quality over quantity.
+- Limit yourself to 1 finding per run. Quality over quantity.
 
 ## What you must do
 

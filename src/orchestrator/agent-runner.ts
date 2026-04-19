@@ -101,7 +101,7 @@ export async function runClaudeAgent(
           if (!trimmed) continue;
           try {
             const event: StreamEvent = JSON.parse(trimmed);
-            console.log(trimmed);
+            console.log(JSON.stringify(event, null, 2));
           } catch {
             // Not JSON — print raw
             console.log(trimmed);
