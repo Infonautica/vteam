@@ -1,0 +1,41 @@
+{
+  "name": "vteam",
+  "version": "0.1.0",
+  "description": "Virtual development team framework powered by Claude Code",
+  "type": "module",
+  "bin": {
+    "vteam": "./dist/bin.js"
+  },
+  "scripts": {
+    "build": "tsc && cp -r src/templates dist/templates",
+    "dev": "tsx src/bin.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "claude",
+    "ai",
+    "code-review",
+    "refactoring",
+    "automation"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^13.1.0",
+    "gray-matter": "^4.0.3",
+    "slugify": "^1.6.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
+  }
+}
