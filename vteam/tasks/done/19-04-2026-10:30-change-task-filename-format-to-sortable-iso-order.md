@@ -1,14 +1,16 @@
 ---
 title: Change task filename format to sortable ISO order
-created: 2026-04-19T10:30:00Z
-status: todo
+created: 2026-04-19T10:30:00.000Z
+status: done
 severity: medium
 found-by: human
 files:
   - src/tasks/task-file.ts
   - src/templates/code-reviewer.agent.md
+completed: '2026-04-19T08:21:38.342Z'
+branch: vteam/19-04-2026-1030-change-task-filename-format-to-sortable-iso-order
+mr-url: 'https://github.com/Infonautica/vteam/pull/2'
 ---
-
 ## Description
 
 Task filenames currently use `DD-MM-YYYY-HH:mm-<slug>.md` which does not sort chronologically in directory listings or `ls`. The format should be changed to `YYYY-MM-DD-HH-mm-ss-<slug>.md` so files sort naturally by date.
