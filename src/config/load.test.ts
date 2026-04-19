@@ -1,0 +1,115 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { rmSync } from "node:fs";
+import { resolve, join } from "node:path";
+import { tmpdir } from "node:os";
+import { loadConfig } from "./load.js";
+
+let tmp: string;
+
+beforeEach(() => {
+  tmp = mkdtempSync(join(tmpdir(), "vteam-config-test-"));
+});
+
+afterEach(() => {
+  rmSync(tmp, { recursive: true, force: true });
+});
+
+function writeConfig(data: unknown): void {
+  const dir = resolve(tmp, "vteam");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    resolve(dir, "vteam.config.json"),
+    JSON.stringify(data, null, 2),
+  );
+}
+
+describe("loadConfig", () => {
+  it("throws when vteam.config.json does not exist", () => {
+    expect(() => loadConfig(tmp)).toThrow("vteam.config.json not found");
+  });
+
+  it("parses a valid config and returns typed data", () => {
+    writeConfig({
+      baseBranch: "main",
+      platform: "github",
+      worktreeDir: ".vteam-worktrees",
+      agents: {
+        "code-reviewer": {
+          model: "sonnet",
+          scanPaths: ["src/"],
+        },
+      },
+      tasks: { maxRetries: 3 },
+    });
+
+    const config = loadConfig(tmp);
+    expect(config.baseBranch).toBe("main");
+    expect(config.platform).toBe("github");
+    expect(config.agents["code-reviewer"].model).toBe("sonnet");
+    expect(config.tasks.maxRetries).toBe(3);
+  });
+
+  it("throws with field path on missing required field", () => {
+    writeConfig({
+      platform: "github",
+      worktreeDir: ".vteam-worktrees",
+      agents: {},
+      tasks: { maxRetries: 3 },
+    });
+
+    expect(() => loadConfig(tmp)).toThrow("Invalid vteam.config.json");
+    expect(() => loadConfig(tmp)).toThrow("baseBranch");
+  });
+
+  it("throws with field path on invalid platform", () => {
+    writeConfig({
+      baseBranch: "main",
+      platform: "bitbucket",
+      worktreeDir: ".vteam-worktrees",
+      agents: {},
+      tasks: { maxRetries: 3 },
+    });
+
+    expect(() => loadConfig(tmp)).toThrow("platform");
+  });
+
+  it("throws on autoMR without worktree", () => {
+    writeConfig({
+      baseBranch: "main",
+      platform: "github",
+      worktreeDir: ".vteam-worktrees",
+      agents: {
+        broken: { autoMR: true },
+      },
+      tasks: { maxRetries: 3 },
+    });
+
+    expect(() => loadConfig(tmp)).toThrow("autoMR requires worktree");
+  });
+
+  it("throws on invalid JSON", () => {
+    const dir = resolve(tmp, "vteam");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(resolve(dir, "vteam.config.json"), "not json{{{");
+
+    expect(() => loadConfig(tmp)).toThrow();
+  });
+
+  it("reports multiple errors at once", () => {
+    writeConfig({
+      worktreeDir: ".vteam-worktrees",
+      agents: {},
+      tasks: { maxRetries: 3 },
+    });
+
+    try {
+      loadConfig(tmp);
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      const msg = (err as Error).message;
+      expect(msg).toContain("baseBranch");
+      expect(msg).toContain("platform");
+    }
+  });
+});

@@ -1,6 +1,5 @@
 import {
   existsSync,
-  readFileSync,
   mkdirSync,
   writeFileSync,
   readdirSync,
@@ -23,15 +22,8 @@ import {
   pushBranch,
 } from "../worktree/manager.js";
 import { createMergeRequest } from "../integrations/merge-request.js";
+import { loadConfig } from "../config/load.js";
 import type { AgentConfig, VteamConfig, RunState, TaskFile } from "../types.js";
-
-function loadConfig(cwd: string): VteamConfig {
-  const configPath = resolve(cwd, "vteam", "vteam.config.json");
-  if (!existsSync(configPath)) {
-    throw new Error("vteam.config.json not found. Run 'vteam init' first.");
-  }
-  return JSON.parse(readFileSync(configPath, "utf-8"));
-}
 
 function resolveAgentConfig(
   name: string,
@@ -127,13 +119,6 @@ async function runAgent(
   const overviewPath = resolve(tasksDir, "overview.md");
   const locksDir = resolve(cwd, "vteam", ".locks");
   mkdirSync(locksDir, { recursive: true });
-
-  if (agent.autoMR && !agent.worktree) {
-    console.error(
-      `Agent "${agent.name}": autoMR requires worktree: true`,
-    );
-    process.exit(1);
-  }
 
   let agentLock: FileLock | undefined;
   let worktreePath: string | undefined;
