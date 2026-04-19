@@ -17,6 +17,12 @@ export function createWorktree(
   const branch = `vteam/${slugify(taskSlug, { lower: true, strict: true })}`;
   const worktreePath = resolve(repoRoot, worktreeDir, branch);
 
+  try {
+    execSync(`git branch -D "${branch}"`, { cwd: repoRoot, stdio: "pipe" });
+  } catch {
+    // Branch doesn't exist — expected path
+  }
+
   execSync(
     `git worktree add -b "${branch}" "${worktreePath}" "${baseBranch}"`,
     { cwd: repoRoot, stdio: "pipe" },
@@ -85,7 +91,7 @@ export function pushBranch(
   worktreePath: string,
   branch: string,
 ): void {
-  execSync(`git push origin "${branch}"`, {
+  execSync(`git push --force origin "${branch}"`, {
     cwd: worktreePath,
     stdio: "pipe",
   });

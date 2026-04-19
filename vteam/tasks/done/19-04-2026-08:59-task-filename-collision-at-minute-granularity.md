@@ -1,13 +1,15 @@
 ---
 title: Task filename collision when multiple findings share the same minute timestamp
 created: 2026-04-19T08:59:00.000Z
-status: backlog
+status: done
 severity: medium
 found-by: code-reviewer
 files:
-  - src/tasks/task-file.ts:37
+  - 'src/tasks/task-file.ts:37'
+completed: '2026-04-19T07:27:35.429Z'
+branch: vteam/19-04-2026-0859-task-filename-collision-at-minute-granularity
+mr-url: 'https://github.com/Infonautica/vteam/pull/1'
 ---
-
 ## Description
 
 `generateTaskFilename` (line 37-43) produces filenames in the format `DD-MM-YYYY-HH:mm-<slug>.md`. The timestamp has minute-level granularity with no seconds component. When the code-reviewer runs and returns multiple findings (which all get written in the same second), any two findings whose titles produce identical slugs after `slugify` will generate the same filename. The second `writeFileSync` call (line 74 via `createTaskFile`) will silently overwrite the first, discarding one task.

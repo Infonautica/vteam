@@ -19,7 +19,7 @@ export function createMergeRequest(options: MROptions): string {
 }
 
 function createGitHubPR(options: MROptions): string {
-  const args = [
+  const baseArgs = [
     "pr",
     "create",
     "--head",
@@ -33,10 +33,20 @@ function createGitHubPR(options: MROptions): string {
   ];
 
   if (options.labels?.length) {
-    args.push("--label", options.labels.join(","));
+    try {
+      const args = [...baseArgs, "--label", options.labels.join(",")];
+      const result = execSync(`gh ${args.map(shellEscape).join(" ")}`, {
+        cwd: options.cwd,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      return result.trim();
+    } catch {
+      // Labels may not exist in the repo — retry without them
+    }
   }
 
-  const result = execSync(`gh ${args.map(shellEscape).join(" ")}`, {
+  const result = execSync(`gh ${baseArgs.map(shellEscape).join(" ")}`, {
     cwd: options.cwd,
     encoding: "utf-8",
     stdio: ["pipe", "pipe", "pipe"],
