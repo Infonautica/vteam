@@ -96,28 +96,35 @@ function findGitHubPRsByLabels(
   }));
 }
 
+export function getRepoSlug(platform: Platform, cwd: string): string {
+  if (platform === "github") {
+    return execSync(
+      "gh repo view --json nameWithOwner --jq .nameWithOwner",
+      { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
+    ).trim();
+  }
+  const result = execSync(
+    'glab api "projects/:id" --jq .path_with_namespace',
+    { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
+  );
+  return result.trim();
+}
+
 function getGitHubReviewComments(
   prNumber: number,
   cwd: string,
 ): ReviewComment[] {
-  const result = execSync(
-    `gh pr view ${prNumber} --json reviews,reviewComments,comments`,
+  const prResult = execSync(
+    `gh pr view ${prNumber} --json reviews,comments`,
     { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
   );
 
-  const data = JSON.parse(result) as {
+  const prData = JSON.parse(prResult) as {
     reviews: Array<{
       author: { login: string };
       body: string;
       state: string;
       submittedAt: string;
-    }>;
-    reviewComments: Array<{
-      author: { login: string };
-      body: string;
-      path: string;
-      line: number;
-      createdAt: string;
     }>;
     comments: Array<{
       author: { login: string };
@@ -126,9 +133,24 @@ function getGitHubReviewComments(
     }>;
   };
 
+  const slug = getRepoSlug("github", cwd);
+  const inlineResult = execSync(
+    `gh api "repos/${slug}/pulls/${prNumber}/comments"`,
+    { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
+  );
+
+  const inlineComments = JSON.parse(inlineResult.trim() || "[]") as Array<{
+    user: { login: string };
+    body: string;
+    path: string;
+    line: number | null;
+    original_line: number | null;
+    created_at: string;
+  }>;
+
   const comments: ReviewComment[] = [];
 
-  for (const review of data.reviews) {
+  for (const review of prData.reviews) {
     if (review.body?.trim()) {
       comments.push({
         author: review.author.login,
@@ -138,17 +160,17 @@ function getGitHubReviewComments(
     }
   }
 
-  for (const rc of data.reviewComments) {
+  for (const rc of inlineComments) {
     comments.push({
-      author: rc.author.login,
+      author: rc.user.login,
       body: rc.body,
       path: rc.path,
-      line: rc.line,
-      createdAt: rc.createdAt,
+      line: rc.line ?? rc.original_line ?? undefined,
+      createdAt: rc.created_at,
     });
   }
 
-  for (const c of data.comments) {
+  for (const c of prData.comments) {
     comments.push({
       author: c.author.login,
       body: c.body,

@@ -61,6 +61,8 @@ function buildReviewSection(review: PRReviewContext): string {
   const lines: string[] = [
     `## Pull Request`,
     "",
+    `Number: #${review.pr.number}`,
+    `Repository: ${review.repoSlug}`,
     `Title: ${review.pr.title}`,
     `URL: ${review.pr.url}`,
     `Branch: ${review.pr.branch}`,

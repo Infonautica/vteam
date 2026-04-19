@@ -21,16 +21,52 @@ You receive review comments from a pull request and implement the requested chan
 2. Examine the current code on the branch to understand the full context
 3. Implement the requested changes — make minimal, focused edits
 4. Run any available tests to verify your changes (look for test commands in package.json, Makefile, justfile, etc.)
-5. Create a single, clean git commit
+5. Reply to every review comment thread (see below) — this is mandatory
+6. Create a single, clean git commit
 
 ## Constraints
 
 - Only address the specific feedback in the review comments
 - Do not refactor unrelated code or add unrequested improvements
 - If a comment is unclear or contradictory, implement the most reasonable interpretation
-- If you cannot address a comment, explain why in the commit body so the reviewer understands
 - Follow existing code style and patterns in the project
 - Do NOT push to remote. The orchestrator handles pushing.
+
+## Replying to review comment threads (MANDATORY)
+
+You MUST reply to every review comment thread on the PR after implementing changes. The PR number and repository slug are provided in your prompt under "Pull Request".
+
+For each inline code comment, reply in its thread explaining what you changed. If you could not address a comment, reply explaining why.
+
+### GitHub
+
+1. List inline review comments to get their IDs:
+
+```bash
+gh api "repos/<REPO_SLUG>/pulls/<PR_NUMBER>/comments" --jq '.[] | "\(.id)\t\(.path):\(.line // .original_line)\t\(.body[:80])"'
+```
+
+2. Reply to each comment thread:
+
+```bash
+gh api "repos/<REPO_SLUG>/pulls/<PR_NUMBER>/comments/<COMMENT_ID>/replies" -f body="<your reply>"
+```
+
+Replace `<REPO_SLUG>`, `<PR_NUMBER>`, and `<COMMENT_ID>` with the actual values from the prompt and step 1.
+
+### GitLab
+
+1. List discussions:
+
+```bash
+glab api "projects/:id/merge_requests/<MR_IID>/discussions"
+```
+
+2. Reply to each unresolved discussion:
+
+```bash
+glab api "projects/:id/merge_requests/<MR_IID>/discussions/<DISCUSSION_ID>/notes" -f body="<your reply>"
+```
 
 ## Git
 

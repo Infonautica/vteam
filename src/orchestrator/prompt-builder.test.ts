@@ -174,6 +174,7 @@ describe("buildPrompt", () => {
         branch: "vteam/fix-null-check",
         url: "https://github.com/org/repo/pull/42",
       },
+      repoSlug: "org/repo",
       comments: [
         {
           author: "reviewer1",
@@ -192,6 +193,8 @@ describe("buildPrompt", () => {
 
     const { userPrompt } = buildPrompt(agentConfig, tasksDir, undefined, review);
     expect(userPrompt).toContain("Pull Request");
+    expect(userPrompt).toContain("#42");
+    expect(userPrompt).toContain("org/repo");
     expect(userPrompt).toContain("vteam: Fix null check in auth");
     expect(userPrompt).toContain("vteam/fix-null-check");
     expect(userPrompt).toContain("https://github.com/org/repo/pull/42");

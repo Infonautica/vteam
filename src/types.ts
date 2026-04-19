@@ -57,6 +57,7 @@ export interface ReviewablePR {
 export interface PRReviewContext {
   pr: ReviewablePR;
   comments: ReviewComment[];
+  repoSlug: string;
 }
 
 export interface VteamConfig {

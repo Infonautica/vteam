@@ -28,6 +28,7 @@ import { createMergeRequest } from "../integrations/merge-request.js";
 import {
   findReviewablePR,
   getReviewComments,
+  getRepoSlug,
   postPRComment,
   removePRLabel,
 } from "../integrations/pull-request.js";
@@ -201,7 +202,8 @@ async function runAgent(
         console.log(`PR #${pr.number} has no actionable comments. Skipping.`);
         return;
       }
-      reviewContext = { pr, comments };
+      const repoSlug = getRepoSlug(config.platform, cwd);
+      reviewContext = { pr, comments, repoSlug };
       console.log(
         `Responding to PR #${pr.number}: ${pr.title} (${comments.length} comments)`,
       );
