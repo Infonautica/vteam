@@ -1,11 +1,21 @@
-import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  mkdirSync,
+  writeFileSync,
+  readdirSync,
+} from "node:fs";
 import { execSync } from "node:child_process";
 import { resolve } from "node:path";
 import { acquireLock, type FileLock } from "../memory/lock.js";
-import { buildCodeReviewerPrompt, buildRefactorerPrompt } from "../orchestrator/prompt-builder.js";
+import { buildPrompt } from "../orchestrator/prompt-builder.js";
 import { runClaudeAgent } from "../orchestrator/agent-runner.js";
 import { buildTaskIndex } from "../memory/task-index.js";
-import { severityPriority, moveTask, updateTaskFrontmatter } from "../tasks/task-file.js";
+import {
+  severityPriority,
+  moveTask,
+  updateTaskFrontmatter,
+} from "../tasks/task-file.js";
 import { updateOverviewEntryStatus } from "../memory/overview.js";
 import {
   createWorktree,
@@ -13,7 +23,7 @@ import {
   pushBranch,
 } from "../worktree/manager.js";
 import { createMergeRequest } from "../integrations/merge-request.js";
-import type { AgentConfig, VteamConfig, RunState } from "../types.js";
+import type { AgentConfig, VteamConfig, RunState, TaskFile } from "../types.js";
 
 function loadConfig(cwd: string): VteamConfig {
   const configPath = resolve(cwd, "vteam", "vteam.config.json");
@@ -28,17 +38,18 @@ function resolveAgentConfig(
   cwd: string,
   config: VteamConfig,
 ): AgentConfig {
-  const agentDir = resolve(cwd, "vteam", name);
+  const agentDir = resolve(cwd, "vteam", "agents", name);
   const agentMdPath = resolve(agentDir, "AGENT.md");
 
   if (!existsSync(agentMdPath)) {
     throw new Error(`Agent "${name}" not found at ${agentMdPath}`);
   }
 
+  const configEntry = config.agents[name] ?? {};
   return {
     name,
     agentMdPath,
-    ...config.agents[name],
+    ...configEntry,
   };
 }
 
@@ -58,151 +69,154 @@ function generateRunId(agent: string): string {
   return `${ts}-${agent}`;
 }
 
-export async function runCommand(agentName: string): Promise<void> {
+function listAgents(cwd: string, config: VteamConfig): void {
+  const agentsDir = resolve(cwd, "vteam", "agents");
+  if (!existsSync(agentsDir)) {
+    console.log("No agents found. Run 'vteam init' first.");
+    return;
+  }
+
+  const entries = readdirSync(agentsDir, { withFileTypes: true });
+  const agents = entries
+    .filter(
+      (e) =>
+        e.isDirectory() &&
+        existsSync(resolve(agentsDir, e.name, "AGENT.md")),
+    )
+    .map((e) => e.name);
+
+  if (agents.length === 0) {
+    console.log("No agents found in vteam/agents/.");
+    return;
+  }
+
+  console.log("Available agents:\n");
+  for (const name of agents) {
+    const cfg = config.agents[name] ?? {};
+    const flags = [
+      cfg.worktree ? "worktree" : null,
+      cfg.taskInput ? "taskInput" : null,
+      cfg.autoMR ? "autoMR" : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    console.log(`  ${name}${flags ? `  (${flags})` : ""}`);
+  }
+}
+
+export async function runCommand(agentName?: string): Promise<void> {
   const cwd = process.cwd();
   const config = loadConfig(cwd);
+
+  if (!agentName) {
+    listAgents(cwd, config);
+    return;
+  }
+
   const agent = resolveAgentConfig(agentName, cwd, config);
-
-  switch (agentName) {
-    case "code-reviewer":
-      await runCodeReviewer(cwd, agent);
-      break;
-    case "refactorer":
-      await runRefactorer(cwd, config, agent);
-      break;
-    default:
-      console.error(`Unknown agent: ${agentName}. Available: code-reviewer, refactorer`);
-      process.exit(1);
-  }
+  await runAgent(cwd, config, agent);
 }
 
-async function runCodeReviewer(
-  cwd: string,
-  agent: AgentConfig,
-): Promise<void> {
-  const runId = generateRunId("code-reviewer");
-  const overviewPath = resolve(cwd, "vteam", "tasks", "overview.md");
-  const locksDir = resolve(cwd, "vteam", ".locks");
-  mkdirSync(locksDir, { recursive: true });
-
-  let agentLock: FileLock | undefined;
-
-  try {
-    console.log("Acquiring lock...");
-    agentLock = await acquireLock(resolve(locksDir, "code-reviewer"), "code-reviewer");
-
-    const runState: RunState = {
-      runId,
-      agent: "code-reviewer",
-      status: "started",
-      startedAt: new Date().toISOString(),
-    };
-    writeRunState(cwd, runState);
-
-    console.log("Building prompt...");
-    const { systemPrompt, userPrompt } = buildCodeReviewerPrompt(agent, overviewPath);
-
-    console.log("Running code reviewer agent...");
-    runState.status = "claude_running";
-    writeRunState(cwd, runState);
-
-    const result = await runClaudeAgent({
-      systemPrompt,
-      userPrompt,
-      cwd,
-      model: agent.model,
-    });
-
-    if (result.exitCode !== 0) {
-      throw new Error(`Claude exited with code ${result.exitCode}`);
-    }
-
-    console.log("\nCode reviewer finished.");
-    runState.status = "completed";
-    runState.completedAt = new Date().toISOString();
-    writeRunState(cwd, runState);
-  } catch (err) {
-    console.error("Code reviewer failed:", err instanceof Error ? err.message : err);
-    writeRunState(cwd, {
-      runId,
-      agent: "code-reviewer",
-      status: "failed",
-      startedAt: new Date().toISOString(),
-      error: err instanceof Error ? err.message : String(err),
-    });
-    process.exit(1);
-  } finally {
-    agentLock?.release();
-  }
-}
-
-async function runRefactorer(
+async function runAgent(
   cwd: string,
   config: VteamConfig,
   agent: AgentConfig,
 ): Promise<void> {
-  const runId = generateRunId("refactorer");
+  const runId = generateRunId(agent.name);
   const tasksDir = resolve(cwd, "vteam", "tasks");
   const overviewPath = resolve(tasksDir, "overview.md");
-  const todoDir = resolve(tasksDir, "todo");
-  const doneDir = resolve(tasksDir, "done");
   const locksDir = resolve(cwd, "vteam", ".locks");
   mkdirSync(locksDir, { recursive: true });
+
+  if (agent.autoMR && !agent.worktree) {
+    console.error(
+      `Agent "${agent.name}": autoMR requires worktree: true`,
+    );
+    process.exit(1);
+  }
 
   let agentLock: FileLock | undefined;
   let worktreePath: string | undefined;
   let branchName: string | undefined;
+  let task: TaskFile | undefined;
 
   try {
     console.log("Acquiring lock...");
-    agentLock = await acquireLock(resolve(locksDir, "refactorer"), "refactorer");
+    agentLock = await acquireLock(
+      resolve(locksDir, agent.name),
+      agent.name,
+    );
 
-    const taskIndex = buildTaskIndex(tasksDir);
-    const todoTasks = taskIndex.byStatus.get("todo") ?? [];
+    if (agent.taskInput) {
+      const taskIndex = buildTaskIndex(tasksDir);
+      const todoTasks = taskIndex.byStatus.get("todo") ?? [];
+      const eligible = todoTasks
+        .filter(
+          (t) =>
+            (t.frontmatter["retry-count"] ?? 0) <
+            config.tasks.maxRetries,
+        )
+        .sort(
+          (a, b) =>
+            severityPriority(a.frontmatter.severity) -
+            severityPriority(b.frontmatter.severity),
+        );
 
-    const eligible = todoTasks
-      .filter((t) => (t.frontmatter["retry-count"] ?? 0) < config.tasks.maxRetries)
-      .sort((a, b) => severityPriority(a.frontmatter.severity) - severityPriority(b.frontmatter.severity));
-
-    if (eligible.length === 0) {
-      console.log("No tasks in todo/. Nothing to do.");
-      return;
+      if (eligible.length === 0) {
+        console.log("No tasks in todo/. Nothing to do.");
+        return;
+      }
+      task = eligible[0];
+      console.log(
+        `Picked task: ${task.frontmatter.title} (${task.frontmatter.severity})`,
+      );
     }
-
-    const task = eligible[0];
-    console.log(`Picked task: ${task.frontmatter.title} (${task.frontmatter.severity})`);
 
     const runState: RunState = {
       runId,
-      agent: "refactorer",
+      agent: agent.name,
       status: "started",
       startedAt: new Date().toISOString(),
-      taskFile: task.filename,
+      ...(task ? { taskFile: task.filename } : {}),
     };
     writeRunState(cwd, runState);
 
-    console.log("Creating worktree...");
-    const slug = task.filename.replace(/\.md$/, "");
-    const wt = createWorktree(cwd, slug, config.baseBranch, config.worktreeDir);
-    worktreePath = wt.path;
-    branchName = wt.branch;
-    runState.worktreePath = worktreePath;
-    runState.branchName = branchName;
-    writeRunState(cwd, runState);
-
-    console.log(`Worktree: ${worktreePath} (branch: ${branchName})`);
+    let agentCwd = cwd;
+    if (agent.worktree) {
+      console.log("Creating worktree...");
+      const slug = task
+        ? task.filename.replace(/\.md$/, "")
+        : `${agent.name}-${runId}`;
+      const wt = createWorktree(
+        cwd,
+        slug,
+        config.baseBranch,
+        config.worktreeDir,
+      );
+      worktreePath = wt.path;
+      branchName = wt.branch;
+      agentCwd = worktreePath;
+      runState.worktreePath = worktreePath;
+      runState.branchName = branchName;
+      writeRunState(cwd, runState);
+      console.log(`Worktree: ${worktreePath} (branch: ${branchName})`);
+    }
 
     console.log("Building prompt...");
-    const { systemPrompt, userPrompt } = buildRefactorerPrompt(agent, overviewPath, task);
+    const { systemPrompt, userPrompt } = buildPrompt(
+      agent,
+      overviewPath,
+      task,
+    );
 
-    console.log("Running refactorer agent...");
+    console.log(`Running ${agent.name} agent...`);
     runState.status = "claude_running";
     writeRunState(cwd, runState);
 
     const result = await runClaudeAgent({
       systemPrompt,
       userPrompt,
-      cwd: worktreePath,
+      cwd: agentCwd,
       model: agent.model,
     });
 
@@ -210,63 +224,82 @@ async function runRefactorer(
       throw new Error(`Claude exited with code ${result.exitCode}`);
     }
 
-    // Check if Claude made a commit
-    const hasCommit = hasNewCommit(worktreePath, config.baseBranch);
+    if (agent.worktree && worktreePath && branchName) {
+      const hasCommit = hasNewCommit(worktreePath, config.baseBranch);
 
-    if (hasCommit) {
-      console.log("\nRefactorer made changes. Pushing...");
-      pushBranch(worktreePath, branchName);
+      if (hasCommit) {
+        console.log(`\n${agent.name} made changes. Pushing...`);
+        pushBranch(worktreePath, branchName);
 
-      let mrUrl: string | undefined;
-      if (agent.autoMR !== false) {
-        console.log("Creating merge request...");
-        try {
-          mrUrl = createMergeRequest({
-            platform: config.platform,
+        let mrUrl: string | undefined;
+        if (agent.autoMR) {
+          console.log("Creating merge request...");
+          try {
+            mrUrl = createMergeRequest({
+              platform: config.platform,
+              branch: branchName,
+              baseBranch: config.baseBranch,
+              title: `vteam: ${task?.frontmatter.title ?? agent.name}`,
+              body: `Automated by vteam (${agent.name}).${task ? `\n\nTask: ${task.frontmatter.title}` : ""}`,
+              labels: agent.mrLabels,
+              cwd,
+            });
+            console.log(`MR created: ${mrUrl}`);
+          } catch (mrErr) {
+            console.error(
+              "MR creation failed:",
+              mrErr instanceof Error ? mrErr.message : mrErr,
+            );
+            console.log("Branch was pushed. Create the MR manually.");
+          }
+        }
+
+        if (task) {
+          const todoDir = resolve(tasksDir, "todo");
+          const doneDir = resolve(tasksDir, "done");
+          moveTask(todoDir, doneDir, task.filename, {
+            status: "done",
+            completed: new Date().toISOString(),
             branch: branchName,
-            baseBranch: config.baseBranch,
-            title: `vteam: ${task.frontmatter.title}`,
-            body: `Automated by vteam refactorer.\n\nTask: ${task.frontmatter.title}`,
-            labels: agent.mrLabels,
-            cwd,
+            ...(mrUrl ? { "mr-url": mrUrl } : {}),
           });
-          console.log(`MR created: ${mrUrl}`);
-        } catch (mrErr) {
-          console.error("MR creation failed:", mrErr instanceof Error ? mrErr.message : mrErr);
-          console.log("Branch was pushed. Create the MR manually.");
+          updateOverviewEntryStatus(
+            overviewPath,
+            task.frontmatter.title,
+            "done",
+            {
+              branch: branchName,
+              ...(mrUrl ? { mrUrl } : {}),
+            },
+          );
+          console.log("Task completed.");
+        }
+      } else {
+        console.log(`\n${agent.name} did not commit any changes.`);
+        if (task) {
+          const currentRetries = task.frontmatter["retry-count"] ?? 0;
+          updateTaskFrontmatter(task.path, {
+            "retry-count": currentRetries + 1,
+          });
+          console.log(
+            `Retry count: ${currentRetries + 1}/${config.tasks.maxRetries}`,
+          );
         }
       }
-
-      moveTask(todoDir, doneDir, task.filename, {
-        status: "done",
-        completed: new Date().toISOString(),
-        branch: branchName,
-        ...(mrUrl ? { "mr-url": mrUrl } : {}),
-      });
-
-      updateOverviewEntryStatus(overviewPath, task.frontmatter.title, "done", {
-        branch: branchName,
-        ...(mrUrl ? { mrUrl } : {}),
-      });
-
-      console.log("Task completed.");
-    } else {
-      console.log("\nRefactorer did not commit any changes.");
-      const currentRetries = task.frontmatter["retry-count"] ?? 0;
-      updateTaskFrontmatter(task.path, {
-        "retry-count": currentRetries + 1,
-      });
-      console.log(`Retry count: ${currentRetries + 1}/${config.tasks.maxRetries}`);
     }
 
+    console.log(`\n${agent.name} finished.`);
     runState.status = "completed";
     runState.completedAt = new Date().toISOString();
     writeRunState(cwd, runState);
   } catch (err) {
-    console.error("Refactorer failed:", err instanceof Error ? err.message : err);
+    console.error(
+      `${agent.name} failed:`,
+      err instanceof Error ? err.message : err,
+    );
     writeRunState(cwd, {
       runId,
-      agent: "refactorer",
+      agent: agent.name,
       status: "failed",
       startedAt: new Date().toISOString(),
       error: err instanceof Error ? err.message : String(err),

@@ -30,6 +30,8 @@ export interface AgentConfig {
   model?: string;
   scanPaths?: string[];
   excludePaths?: string[];
+  worktree?: boolean;
+  taskInput?: boolean;
   autoMR?: boolean;
   mrLabels?: string[];
 }

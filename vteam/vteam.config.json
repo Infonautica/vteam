@@ -10,6 +10,8 @@
     },
     "refactorer": {
       "model": "sonnet",
+      "worktree": true,
+      "taskInput": true,
       "autoMR": true,
       "mrLabels": ["vteam", "automated"]
     }

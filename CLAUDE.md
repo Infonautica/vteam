@@ -36,7 +36,17 @@ Each `claude -p` call is stateless. Memory is external:
 
 ### Worktrees
 
-The refactorer creates a git worktree (`git worktree add`) for each task so it works on an isolated copy of the repo. After Claude commits changes in the worktree, the orchestrator pushes the branch, creates an MR, and cleans up the worktree.
+Agents with `worktree: true` get an isolated git worktree (`git worktree add`). After Claude commits changes in the worktree, the orchestrator pushes the branch, optionally creates an MR (if `autoMR: true`), and cleans up the worktree.
+
+### Agent configuration
+
+Agents are defined at `vteam/agents/<name>/AGENT.md`. Three config flags in `vteam.config.json` control orchestrator behavior per agent:
+
+- `worktree` (default: `false`) — run in an isolated git worktree, push branch on commit
+- `taskInput` (default: `false`) — pick a task from `todo/` queue, manage task lifecycle
+- `autoMR` (default: `false`) — create a merge request after pushing (requires `worktree: true`)
+
+Agents without a config entry use defaults (all flags false) — safest behavior, runs in CWD with no task input. Add custom agents by creating `vteam/agents/<name>/AGENT.md` and optionally adding a config entry.
 
 ## Project structure
 
@@ -51,7 +61,7 @@ src/
 │   └── clean.ts                  vteam clean — prune worktrees, stale locks
 ├── orchestrator/
 │   ├── agent-runner.ts           Spawns claude -p, captures output
-│   └── prompt-builder.ts         Assembles layered prompts
+│   └── prompt-builder.ts         Assembles layered prompts (single generic function)
 ├── memory/
 │   ├── overview.ts               Read/write/append overview.md
 │   ├── task-index.ts             Scans task dirs, builds title list for dedup
@@ -89,7 +99,7 @@ All three must pass before any commit or PR:
 
 ## v1 scope and constraints
 
-- Two hardcoded agents: `code-reviewer` and `refactorer`. Custom agents are v2.
+- Ships with two default agents (`code-reviewer` and `refactorer`). Custom agents supported by creating `vteam/agents/<name>/AGENT.md`.
 - Supports both GitHub (`gh`) and GitLab (`glab`) — configured via `platform` in `vteam.config.json`.
 - No Slack integration yet.
 - No `--max-budget-usd` caps on agent runs.
@@ -102,7 +112,7 @@ All three must pass before any commit or PR:
 - Task filenames: `YYYY-MM-DD-HH-mm-ss-<slugified-title>.md`
 - Task frontmatter uses YAML via `gray-matter`.
 - Locking uses atomic `mkdir` with stale detection (30 min timeout).
-- The code-reviewer agent writes task files and updates overview.md directly using Claude's file tools. The refactorer agent commits changes; the orchestrator handles pushing, MR creation, and moving task files.
+- Agents without `worktree` (e.g. code-reviewer) write files directly using Claude's tools. Agents with `worktree` + `taskInput` (e.g. refactorer) commit changes; the orchestrator handles pushing, MR creation, and moving task files.
 
 ## Dogfooding
 

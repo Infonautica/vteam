@@ -30,8 +30,8 @@ export async function initCommand(): Promise<void> {
   console.log("Scaffolding vteam/ directory...");
 
   const dirs = [
-    resolve(vteamDir, "code-reviewer"),
-    resolve(vteamDir, "refactorer"),
+    resolve(vteamDir, "agents", "code-reviewer"),
+    resolve(vteamDir, "agents", "refactorer"),
     resolve(vteamDir, "tasks", "backlog"),
     resolve(vteamDir, "tasks", "todo"),
     resolve(vteamDir, "tasks", "done"),
@@ -41,8 +41,8 @@ export async function initCommand(): Promise<void> {
     mkdirSync(dir, { recursive: true });
   }
 
-  copyTemplate("code-reviewer.agent.md", resolve(vteamDir, "code-reviewer", "AGENT.md"));
-  copyTemplate("refactorer.agent.md", resolve(vteamDir, "refactorer", "AGENT.md"));
+  copyTemplate("code-reviewer.agent.md", resolve(vteamDir, "agents", "code-reviewer", "AGENT.md"));
+  copyTemplate("refactorer.agent.md", resolve(vteamDir, "agents", "refactorer", "AGENT.md"));
   copyTemplate("overview.md", resolve(vteamDir, "tasks", "overview.md"));
   copyTemplate("vteam.config.json", resolve(vteamDir, "vteam.config.json"));
 
@@ -64,8 +64,8 @@ export async function initCommand(): Promise<void> {
     writeFileSync(resolve(vteamDir, "tasks", sub, ".gitkeep"), "");
   }
 
-  console.log("  Created vteam/code-reviewer/AGENT.md");
-  console.log("  Created vteam/refactorer/AGENT.md");
+  console.log("  Created vteam/agents/code-reviewer/AGENT.md");
+  console.log("  Created vteam/agents/refactorer/AGENT.md");
   console.log("  Created vteam/tasks/overview.md");
   console.log("  Created vteam/vteam.config.json");
   console.log("\nDone. Edit the AGENT.md files and vteam.config.json to customize.");

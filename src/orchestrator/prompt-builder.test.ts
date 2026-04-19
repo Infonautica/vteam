@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
-import { buildCodeReviewerPrompt, buildRefactorerPrompt } from "./prompt-builder.js";
+import { buildPrompt } from "./prompt-builder.js";
 import type { AgentConfig, TaskFile } from "../types.js";
 
 let tmp: string;
@@ -25,7 +25,7 @@ function setup(): { agentConfig: AgentConfig; overviewPath: string } {
 
   return {
     agentConfig: {
-      name: "code-reviewer",
+      name: "test-agent",
       agentMdPath,
       model: "sonnet",
       scanPaths: ["src/", "lib/"],
@@ -35,42 +35,40 @@ function setup(): { agentConfig: AgentConfig; overviewPath: string } {
   };
 }
 
-describe("buildCodeReviewerPrompt", () => {
+describe("buildPrompt", () => {
   it("includes agent md content as system prompt", () => {
     const { agentConfig, overviewPath } = setup();
-    const { systemPrompt } = buildCodeReviewerPrompt(agentConfig, overviewPath);
+    const { systemPrompt } = buildPrompt(agentConfig, overviewPath);
     expect(systemPrompt).toContain("You are a test agent");
   });
 
   it("includes overview in user prompt", () => {
     const { agentConfig, overviewPath } = setup();
-    const { userPrompt } = buildCodeReviewerPrompt(agentConfig, overviewPath);
+    const { userPrompt } = buildPrompt(agentConfig, overviewPath);
     expect(userPrompt).toContain("existing task");
-    expect(userPrompt).toContain("DO NOT report findings");
   });
 
   it("includes scan paths in user prompt", () => {
     const { agentConfig, overviewPath } = setup();
-    const { userPrompt } = buildCodeReviewerPrompt(agentConfig, overviewPath);
+    const { userPrompt } = buildPrompt(agentConfig, overviewPath);
     expect(userPrompt).toContain("src/, lib/");
   });
 
   it("includes exclude paths in user prompt", () => {
     const { agentConfig, overviewPath } = setup();
-    const { userPrompt } = buildCodeReviewerPrompt(agentConfig, overviewPath);
+    const { userPrompt } = buildPrompt(agentConfig, overviewPath);
     expect(userPrompt).toContain("node_modules/");
   });
 
-  it("handles missing scan paths", () => {
+  it("omits scope section when no scan paths configured", () => {
     const { agentConfig, overviewPath } = setup();
     agentConfig.scanPaths = undefined;
-    const { userPrompt } = buildCodeReviewerPrompt(agentConfig, overviewPath);
-    expect(userPrompt).toContain("Review the entire codebase");
+    agentConfig.excludePaths = undefined;
+    const { userPrompt } = buildPrompt(agentConfig, overviewPath);
+    expect(userPrompt).not.toContain("## Scope");
   });
-});
 
-describe("buildRefactorerPrompt", () => {
-  it("includes task details in user prompt", () => {
+  it("includes task details when task provided", () => {
     const { agentConfig, overviewPath } = setup();
     const task: TaskFile = {
       filename: "task.md",
@@ -86,7 +84,7 @@ describe("buildRefactorerPrompt", () => {
       body: "## Description\n\nThe auth module is broken.",
     };
 
-    const { systemPrompt, userPrompt } = buildRefactorerPrompt(agentConfig, overviewPath, task);
+    const { systemPrompt, userPrompt } = buildPrompt(agentConfig, overviewPath, task);
     expect(systemPrompt).toContain("You are a test agent");
     expect(userPrompt).toContain("Fix null check");
     expect(userPrompt).toContain("high");
@@ -94,23 +92,9 @@ describe("buildRefactorerPrompt", () => {
     expect(userPrompt).toContain("auth module is broken");
   });
 
-  it("includes commit message instruction with task title", () => {
+  it("omits task section when no task provided", () => {
     const { agentConfig, overviewPath } = setup();
-    const task: TaskFile = {
-      filename: "task.md",
-      path: "/tasks/todo/task.md",
-      frontmatter: {
-        title: "Remove dead code",
-        created: "",
-        status: "todo",
-        severity: "low",
-        "found-by": "human",
-        files: ["src/utils.ts"],
-      },
-      body: "Clean up unused functions.",
-    };
-
-    const { userPrompt } = buildRefactorerPrompt(agentConfig, overviewPath, task);
-    expect(userPrompt).toContain('vteam: Remove dead code');
+    const { userPrompt } = buildPrompt(agentConfig, overviewPath);
+    expect(userPrompt).not.toContain("## Your Task");
   });
 });

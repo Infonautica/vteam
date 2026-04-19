@@ -21,7 +21,7 @@ program
 program
   .command("run")
   .description("Run a specific agent")
-  .argument("<agent>", "Agent name (e.g. code-reviewer, refactorer)")
+  .argument("[agent]", "Agent to run (omit to list available agents)")
   .action(runCommand);
 
 program

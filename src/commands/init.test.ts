@@ -25,8 +25,8 @@ describe("initCommand", () => {
 
     expect(existsSync(resolve(tmp, "vteam"))).toBe(true);
     expect(existsSync(resolve(tmp, "vteam", "vteam.config.json"))).toBe(true);
-    expect(existsSync(resolve(tmp, "vteam", "code-reviewer", "AGENT.md"))).toBe(true);
-    expect(existsSync(resolve(tmp, "vteam", "refactorer", "AGENT.md"))).toBe(true);
+    expect(existsSync(resolve(tmp, "vteam", "agents", "code-reviewer", "AGENT.md"))).toBe(true);
+    expect(existsSync(resolve(tmp, "vteam", "agents", "refactorer", "AGENT.md"))).toBe(true);
     expect(existsSync(resolve(tmp, "vteam", "tasks", "overview.md"))).toBe(true);
     expect(existsSync(resolve(tmp, "vteam", "tasks", "backlog", ".gitkeep"))).toBe(true);
     expect(existsSync(resolve(tmp, "vteam", "tasks", "todo", ".gitkeep"))).toBe(true);

@@ -7,73 +7,39 @@ interface PromptParts {
   userPrompt: string;
 }
 
-export function buildCodeReviewerPrompt(
+export function buildPrompt(
   agent: AgentConfig,
   overviewPath: string,
-): PromptParts {
-  const agentMd = readFileSync(agent.agentMdPath, "utf-8");
-  const overview = readOverview(overviewPath);
-
-  const scanScope = agent.scanPaths?.length
-    ? `Focus your review on these paths: ${agent.scanPaths.join(", ")}`
-    : "Review the entire codebase.";
-
-  const excludeNote = agent.excludePaths?.length
-    ? `Skip these paths: ${agent.excludePaths.join(", ")}`
-    : "";
-
-  const systemPrompt = agentMd;
-
-  const userPrompt = `## Team Memory
-
-The following is the current overview of all known tasks. DO NOT report findings that match any existing entry.
-
-${overview}
-
-## Your Task
-
-${scanScope}
-${excludeNote}
-
-## Instructions
-
-- Review the codebase and identify up to 5 issues.
-- For each issue, provide title, severity, description, suggested fix, and affected files with line numbers.
-- Return your response as JSON matching the required schema.`;
-
-  return { systemPrompt, userPrompt };
-}
-
-export function buildRefactorerPrompt(
-  agent: AgentConfig,
-  overviewPath: string,
-  task: TaskFile,
+  task?: TaskFile,
 ): PromptParts {
   const agentMd = readFileSync(agent.agentMdPath, "utf-8");
   const overview = readOverview(overviewPath);
 
   const systemPrompt = agentMd;
 
-  const userPrompt = `## Team Memory
+  const sections: string[] = [];
 
-${overview}
+  sections.push(
+    `## Team Memory\n\nThe following is the current overview of all known tasks.\n\n${overview}`,
+  );
 
-## Your Task
+  if (agent.scanPaths?.length || agent.excludePaths?.length) {
+    const scopeParts: string[] = [];
+    if (agent.scanPaths?.length) {
+      scopeParts.push(`Focus on these paths: ${agent.scanPaths.join(", ")}`);
+    }
+    if (agent.excludePaths?.length) {
+      scopeParts.push(`Skip these paths: ${agent.excludePaths.join(", ")}`);
+    }
+    sections.push(`## Scope\n\n${scopeParts.join("\n")}`);
+  }
 
-Title: ${task.frontmatter.title}
-Severity: ${task.frontmatter.severity}
-Files: ${task.frontmatter.files.join(", ")}
+  if (task) {
+    sections.push(
+      `## Your Task\n\nTitle: ${task.frontmatter.title}\nSeverity: ${task.frontmatter.severity}\nFiles: ${task.frontmatter.files.join(", ")}\n\n${task.body}`,
+    );
+  }
 
-${task.body}
-
-## Instructions
-
-- Implement the changes described above.
-- Make minimal, focused edits. Do not refactor unrelated code.
-- Run tests if available.
-- Create a single git commit with message: "vteam: ${task.frontmatter.title}"
-- Do NOT push. The orchestrator handles pushing.
-- Return your response as JSON matching the required schema.`;
-
+  const userPrompt = sections.join("\n\n");
   return { systemPrompt, userPrompt };
 }
