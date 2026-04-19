@@ -1,4 +1,4 @@
-import { mkdirSync, rmdirSync, readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
+import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 const STALE_MS = 30 * 60 * 1000; // 30 minutes
@@ -66,7 +66,7 @@ export async function acquireLock(
         path: lockDir,
         release: () => {
           try {
-            rmdirSync(lockDir, { recursive: true });
+            rmSync(lockDir, { recursive: true });
           } catch {
             // Already released
           }
@@ -75,7 +75,7 @@ export async function acquireLock(
     } catch (err: unknown) {
       if (err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "EEXIST") {
         if (isLockStale(lockDir)) {
-          rmdirSync(lockDir, { recursive: true });
+          rmSync(lockDir, { recursive: true });
           continue;
         }
         await sleep(500 + Math.random() * 500);
@@ -91,7 +91,7 @@ export async function acquireLock(
 export function breakLock(resourcePath: string): boolean {
   const lockDir = resourcePath + ".lock";
   if (existsSync(lockDir)) {
-    rmdirSync(lockDir, { recursive: true });
+    rmSync(lockDir, { recursive: true });
     return true;
   }
   return false;
