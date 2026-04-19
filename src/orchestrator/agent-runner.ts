@@ -16,6 +16,36 @@ interface AgentRunResult {
   exitCode: number;
 }
 
+interface StreamEvent {
+  type: string;
+  subtype?: string;
+  tool_name?: string;
+  tool_input?: Record<string, unknown>;
+  content?: string;
+  message?: string;
+  session_id?: string;
+}
+
+function formatEvent(event: StreamEvent): string | null {
+  switch (event.type) {
+    case "assistant": {
+      if (event.subtype === "tool_use" && event.tool_name) {
+        const input = event.tool_input ?? {};
+        const detail = input.command ?? input.pattern ?? input.file_path ?? input.description ?? "";
+        return `  [tool] ${event.tool_name}${detail ? `: ${String(detail).slice(0, 120)}` : ""}`;
+      }
+      if (event.subtype === "text" && event.content) {
+        return `  [text] ${event.content.slice(0, 200)}`;
+      }
+      return null;
+    }
+    case "result":
+      return null;
+    default:
+      return null;
+  }
+}
+
 export async function runClaudeAgent(
   options: AgentRunOptions,
 ): Promise<AgentRunResult> {
@@ -29,7 +59,8 @@ export async function runClaudeAgent(
     "--append-system-prompt-file",
     systemPromptFile,
     "--output-format",
-    "text",
+    "stream-json",
+    "--verbose",
     "--permission-mode",
     "bypassPermissions",
     "--no-session-persistence",
@@ -55,10 +86,27 @@ export async function runClaudeAgent(
 
       let stdout = "";
       let stderr = "";
+      let lineBuffer = "";
 
       proc.stdout.on("data", (data: Buffer) => {
-        stdout += data.toString();
-        process.stdout.write(data);
+        const chunk = data.toString();
+        stdout += chunk;
+        lineBuffer += chunk;
+
+        const lines = lineBuffer.split("\n");
+        lineBuffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            const event: StreamEvent = JSON.parse(trimmed);
+            console.log(trimmed);
+          } catch {
+            // Not JSON — print raw
+            console.log(trimmed);
+          }
+        }
       });
 
       proc.stderr.on("data", (data: Buffer) => {
@@ -71,6 +119,15 @@ export async function runClaudeAgent(
       });
 
       proc.on("close", (code) => {
+        if (lineBuffer.trim()) {
+          try {
+            const event: StreamEvent = JSON.parse(lineBuffer.trim());
+            const formatted = formatEvent(event);
+            if (formatted) console.log(formatted);
+          } catch {
+            // ignore
+          }
+        }
         console.log(`\n[vteam] claude exited with code ${code}`);
         resolve({
           stdout,
