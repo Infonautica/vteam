@@ -1,9 +1,11 @@
 import { spawn } from "node:child_process";
+import { writeFileSync, rmSync, mkdtempSync } from "node:fs";
+import { resolve, join } from "node:path";
+import { tmpdir } from "node:os";
 
 interface AgentRunOptions {
   systemPrompt: string;
   userPrompt: string;
-  jsonSchema: object;
   cwd: string;
   model?: string;
 }
@@ -17,15 +19,17 @@ interface AgentRunResult {
 export async function runClaudeAgent(
   options: AgentRunOptions,
 ): Promise<AgentRunResult> {
+  const tmp = mkdtempSync(join(tmpdir(), "vteam-"));
+  const systemPromptFile = resolve(tmp, "system-prompt.md");
+
+  writeFileSync(systemPromptFile, options.systemPrompt, "utf-8");
+
   const args = [
     "-p",
-    options.userPrompt,
-    "--append-system-prompt",
-    options.systemPrompt,
-    "--json-schema",
-    JSON.stringify(options.jsonSchema),
+    "--append-system-prompt-file",
+    systemPromptFile,
     "--output-format",
-    "json",
+    "text",
     "--permission-mode",
     "bypassPermissions",
     "--no-session-persistence",
@@ -35,68 +39,51 @@ export async function runClaudeAgent(
     args.push("--model", options.model);
   }
 
-  return new Promise<AgentRunResult>((resolve, reject) => {
-    const proc = spawn("claude", args, {
-      cwd: options.cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env },
-    });
+  console.log(`[vteam] System prompt file: ${systemPromptFile}`);
+  console.log(`[vteam] cwd: ${options.cwd}`);
 
-    let stdout = "";
-    let stderr = "";
+  try {
+    return await new Promise<AgentRunResult>((resolve, reject) => {
+      const proc = spawn("claude", args, {
+        cwd: options.cwd,
+        stdio: ["pipe", "pipe", "pipe"],
+        env: { ...process.env },
+      });
 
-    proc.stdout.on("data", (data: Buffer) => {
-      stdout += data.toString();
-    });
+      proc.stdin.write(options.userPrompt);
+      proc.stdin.end();
 
-    proc.stderr.on("data", (data: Buffer) => {
-      stderr += data.toString();
-    });
+      let stdout = "";
+      let stderr = "";
 
-    proc.on("error", (err) => {
-      reject(new Error(`Failed to spawn claude: ${err.message}`));
-    });
+      proc.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+        process.stdout.write(data);
+      });
 
-    proc.on("close", (code) => {
-      resolve({
-        stdout,
-        stderr,
-        exitCode: code ?? 1,
+      proc.stderr.on("data", (data: Buffer) => {
+        stderr += data.toString();
+        process.stderr.write(data);
+      });
+
+      proc.on("error", (err) => {
+        reject(new Error(`Failed to spawn claude: ${err.message}`));
+      });
+
+      proc.on("close", (code) => {
+        console.log(`\n[vteam] claude exited with code ${code}`);
+        resolve({
+          stdout,
+          stderr,
+          exitCode: code ?? 1,
+        });
       });
     });
-  });
+  } finally {
+    try {
+      rmSync(tmp, { recursive: true, force: true });
+    } catch {
+      // best-effort cleanup
+    }
+  }
 }
-
-export const REVIEWER_SCHEMA = {
-  type: "object",
-  properties: {
-    findings: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          title: { type: "string" },
-          severity: { enum: ["critical", "high", "medium", "low"] },
-          description: { type: "string" },
-          suggestedFix: { type: "string" },
-          files: { type: "array", items: { type: "string" } },
-        },
-        required: ["title", "severity", "description", "files"],
-      },
-    },
-    summary: { type: "string" },
-    areasScanned: { type: "array", items: { type: "string" } },
-  },
-  required: ["findings", "summary", "areasScanned"],
-};
-
-export const REFACTORER_SCHEMA = {
-  type: "object",
-  properties: {
-    status: { enum: ["completed", "partial", "blocked", "failed"] },
-    summary: { type: "string" },
-    filesChanged: { type: "array", items: { type: "string" } },
-    blockerReason: { type: "string" },
-  },
-  required: ["status", "summary", "filesChanged"],
-};

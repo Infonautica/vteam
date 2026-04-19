@@ -1,33 +1,19 @@
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import { resolve } from "node:path";
-import { buildTaskIndex } from "../memory/task-index.js";
-import { appendToOverview, updateOverviewEntryStatus } from "../memory/overview.js";
 import { acquireLock, type FileLock } from "../memory/lock.js";
-import {
-  createTaskFile,
-  isDuplicateTitle,
-  moveTask,
-  updateTaskFrontmatter,
-  severityPriority,
-} from "../tasks/task-file.js";
 import { buildCodeReviewerPrompt, buildRefactorerPrompt } from "../orchestrator/prompt-builder.js";
-import {
-  runClaudeAgent,
-  REVIEWER_SCHEMA,
-  REFACTORER_SCHEMA,
-} from "../orchestrator/agent-runner.js";
-import {
-  parseClaudeJsonOutput,
-  parseReviewerOutput,
-  parseRefactorerOutput,
-} from "../orchestrator/output-parser.js";
+import { runClaudeAgent } from "../orchestrator/agent-runner.js";
+import { buildTaskIndex } from "../memory/task-index.js";
+import { severityPriority, moveTask, updateTaskFrontmatter } from "../tasks/task-file.js";
+import { updateOverviewEntryStatus } from "../memory/overview.js";
 import {
   createWorktree,
   removeWorktree,
   pushBranch,
 } from "../worktree/manager.js";
 import { createMergeRequest } from "../integrations/merge-request.js";
-import type { AgentConfig, VteamConfig, RunState, OverviewEntry } from "../types.js";
+import type { AgentConfig, VteamConfig, RunState } from "../types.js";
 
 function loadConfig(cwd: string): VteamConfig {
   const configPath = resolve(cwd, "vteam", "vteam.config.json");
@@ -79,7 +65,7 @@ export async function runCommand(agentName: string): Promise<void> {
 
   switch (agentName) {
     case "code-reviewer":
-      await runCodeReviewer(cwd, config, agent);
+      await runCodeReviewer(cwd, agent);
       break;
     case "refactorer":
       await runRefactorer(cwd, config, agent);
@@ -92,12 +78,10 @@ export async function runCommand(agentName: string): Promise<void> {
 
 async function runCodeReviewer(
   cwd: string,
-  config: VteamConfig,
   agent: AgentConfig,
 ): Promise<void> {
   const runId = generateRunId("code-reviewer");
-  const tasksDir = resolve(cwd, "vteam", "tasks");
-  const overviewPath = resolve(tasksDir, "overview.md");
+  const overviewPath = resolve(cwd, "vteam", "tasks", "overview.md");
   const locksDir = resolve(cwd, "vteam", ".locks");
   mkdirSync(locksDir, { recursive: true });
 
@@ -116,10 +100,7 @@ async function runCodeReviewer(
     writeRunState(cwd, runState);
 
     console.log("Building prompt...");
-    const { systemPrompt, userPrompt } = buildCodeReviewerPrompt(
-      agent,
-      overviewPath,
-    );
+    const { systemPrompt, userPrompt } = buildCodeReviewerPrompt(agent, overviewPath);
 
     console.log("Running code reviewer agent...");
     runState.status = "claude_running";
@@ -128,78 +109,27 @@ async function runCodeReviewer(
     const result = await runClaudeAgent({
       systemPrompt,
       userPrompt,
-      jsonSchema: REVIEWER_SCHEMA,
       cwd,
       model: agent.model,
     });
 
     if (result.exitCode !== 0) {
-      throw new Error(
-        `Claude exited with code ${result.exitCode}\nstderr: ${result.stderr}`,
-      );
+      throw new Error(`Claude exited with code ${result.exitCode}`);
     }
 
-    console.log("Parsing output...");
-    runState.status = "processing";
-    writeRunState(cwd, runState);
-
-    const resultText = parseClaudeJsonOutput(result.stdout);
-    const output = parseReviewerOutput(resultText);
-
-    console.log(`Found ${output.findings.length} findings. Areas scanned: ${output.areasScanned.join(", ")}`);
-    console.log(`Summary: ${output.summary}`);
-
-    const taskIndex = buildTaskIndex(tasksDir);
-    const backlogDir = resolve(tasksDir, "backlog");
-    const newEntries: OverviewEntry[] = [];
-    let created = 0;
-    let skipped = 0;
-
-    for (const finding of output.findings) {
-      if (isDuplicateTitle(finding.title, taskIndex.all)) {
-        console.log(`  Skipped (duplicate): ${finding.title}`);
-        skipped++;
-        continue;
-      }
-
-      const filename = createTaskFile(backlogDir, finding, "code-reviewer");
-      created++;
-      console.log(`  Created: ${filename}`);
-
-      newEntries.push({
-        status: "backlog",
-        date: new Date().toISOString().slice(0, 16).replace("T", " "),
-        severity: finding.severity,
-        title: finding.title,
-        files: finding.files[0] ?? "",
-        taskPath: `backlog/${filename}`,
-      });
-    }
-
-    if (newEntries.length > 0) {
-      const overviewLock = await acquireLock(resolve(locksDir, "overview"), "code-reviewer");
-      try {
-        appendToOverview(overviewPath, newEntries);
-      } finally {
-        overviewLock.release();
-      }
-    }
-
-    console.log(`\nDone. Created ${created} tasks, skipped ${skipped} duplicates.`);
-
+    console.log("\nCode reviewer finished.");
     runState.status = "completed";
     runState.completedAt = new Date().toISOString();
     writeRunState(cwd, runState);
   } catch (err) {
     console.error("Code reviewer failed:", err instanceof Error ? err.message : err);
-    const runState: RunState = {
+    writeRunState(cwd, {
       runId,
       agent: "code-reviewer",
       status: "failed",
       startedAt: new Date().toISOString(),
       error: err instanceof Error ? err.message : String(err),
-    };
-    writeRunState(cwd, runState);
+    });
     process.exit(1);
   } finally {
     agentLock?.release();
@@ -263,11 +193,7 @@ async function runRefactorer(
     console.log(`Worktree: ${worktreePath} (branch: ${branchName})`);
 
     console.log("Building prompt...");
-    const { systemPrompt, userPrompt } = buildRefactorerPrompt(
-      agent,
-      overviewPath,
-      task,
-    );
+    const { systemPrompt, userPrompt } = buildRefactorerPrompt(agent, overviewPath, task);
 
     console.log("Running refactorer agent...");
     runState.status = "claude_running";
@@ -276,43 +202,20 @@ async function runRefactorer(
     const result = await runClaudeAgent({
       systemPrompt,
       userPrompt,
-      jsonSchema: REFACTORER_SCHEMA,
       cwd: worktreePath,
       model: agent.model,
     });
 
     if (result.exitCode !== 0) {
-      throw new Error(
-        `Claude exited with code ${result.exitCode}\nstderr: ${result.stderr}`,
-      );
+      throw new Error(`Claude exited with code ${result.exitCode}`);
     }
 
-    console.log("Parsing output...");
-    runState.status = "processing";
-    writeRunState(cwd, runState);
+    // Check if Claude made a commit
+    const hasCommit = hasNewCommit(worktreePath, config.baseBranch);
 
-    const resultText = parseClaudeJsonOutput(result.stdout);
-    const output = parseRefactorerOutput(resultText);
-
-    console.log(`Status: ${output.status}`);
-    console.log(`Summary: ${output.summary}`);
-    console.log(`Files changed: ${output.filesChanged.join(", ")}`);
-
-    if (output.status === "completed") {
-      console.log("Pushing branch...");
-      let pushAttempts = 0;
-      const maxPushAttempts = 3;
-      while (pushAttempts < maxPushAttempts) {
-        try {
-          pushBranch(worktreePath, branchName);
-          break;
-        } catch (pushErr) {
-          pushAttempts++;
-          if (pushAttempts >= maxPushAttempts) throw pushErr;
-          console.log(`Push attempt ${pushAttempts} failed, retrying...`);
-          await new Promise((r) => setTimeout(r, 2000));
-        }
-      }
+    if (hasCommit) {
+      console.log("\nRefactorer made changes. Pushing...");
+      pushBranch(worktreePath, branchName);
 
       let mrUrl: string | undefined;
       if (agent.autoMR !== false) {
@@ -323,7 +226,7 @@ async function runRefactorer(
             branch: branchName,
             baseBranch: config.baseBranch,
             title: `vteam: ${task.frontmatter.title}`,
-            body: `## Automated by vteam refactorer\n\n${output.summary}\n\n### Files changed\n${output.filesChanged.map((f) => `- ${f}`).join("\n")}`,
+            body: `Automated by vteam refactorer.\n\nTask: ${task.frontmatter.title}`,
             labels: agent.mrLabels,
             cwd,
           });
@@ -334,7 +237,6 @@ async function runRefactorer(
         }
       }
 
-      console.log("Moving task to done...");
       moveTask(todoDir, doneDir, task.filename, {
         status: "done",
         completed: new Date().toISOString(),
@@ -342,23 +244,14 @@ async function runRefactorer(
         "mr-url": mrUrl,
       });
 
-      const overviewLock = await acquireLock(resolve(locksDir, "overview"), "refactorer");
-      try {
-        updateOverviewEntryStatus(overviewPath, task.frontmatter.title, "done", {
-          branch: branchName,
-          mrUrl,
-        });
-      } finally {
-        overviewLock.release();
-      }
+      updateOverviewEntryStatus(overviewPath, task.frontmatter.title, "done", {
+        branch: branchName,
+        mrUrl,
+      });
 
-      console.log("\nTask completed successfully.");
+      console.log("Task completed.");
     } else {
-      console.log(`Task not completed: ${output.status}`);
-      if (output.blockerReason) {
-        console.log(`Reason: ${output.blockerReason}`);
-      }
-
+      console.log("\nRefactorer did not commit any changes.");
       const currentRetries = task.frontmatter["retry-count"] ?? 0;
       updateTaskFrontmatter(task.path, {
         "retry-count": currentRetries + 1,
@@ -371,14 +264,13 @@ async function runRefactorer(
     writeRunState(cwd, runState);
   } catch (err) {
     console.error("Refactorer failed:", err instanceof Error ? err.message : err);
-    const runState: RunState = {
+    writeRunState(cwd, {
       runId,
       agent: "refactorer",
       status: "failed",
       startedAt: new Date().toISOString(),
       error: err instanceof Error ? err.message : String(err),
-    };
-    writeRunState(cwd, runState);
+    });
     process.exit(1);
   } finally {
     if (worktreePath) {
@@ -386,5 +278,17 @@ async function runRefactorer(
       removeWorktree(cwd, worktreePath);
     }
     agentLock?.release();
+  }
+}
+
+function hasNewCommit(worktreePath: string, baseBranch: string): boolean {
+  try {
+    const log = execSync(`git log ${baseBranch}..HEAD --oneline`, {
+      cwd: worktreePath,
+      encoding: "utf-8",
+    });
+    return log.trim().length > 0;
+  } catch {
+    return false;
   }
 }

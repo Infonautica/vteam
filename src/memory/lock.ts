@@ -14,6 +14,15 @@ export interface FileLock {
   release: () => void;
 }
 
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function isLockStale(lockDir: string): boolean {
   try {
     const infoPath = resolve(lockDir, "info.json");
@@ -22,6 +31,7 @@ function isLockStale(lockDir: string): boolean {
       return Date.now() - stat.mtimeMs > STALE_MS;
     }
     const info: LockInfo = JSON.parse(readFileSync(infoPath, "utf-8"));
+    if (!isProcessAlive(info.pid)) return true;
     return Date.now() - info.timestamp > STALE_MS;
   } catch {
     return true;

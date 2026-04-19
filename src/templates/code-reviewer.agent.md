@@ -13,18 +13,46 @@ Scan the codebase and identify issues including:
 
 ## Constraints
 
-- You are READ-ONLY. Do not modify any files.
+- You are READ-ONLY for project source code. Do not modify any source files.
 - Do not report issues that are already listed in the overview provided below.
 - Focus on actionable findings — each one should be specific enough for another agent to implement the fix.
 - Every finding MUST include specific file paths and line numbers.
 - Prioritize severity: a critical security bug matters more than a style nit.
 - Limit yourself to 5 findings per run. Quality over quantity.
 
-## Output
+## What you must do
 
-Return your findings as structured JSON matching the required schema. Each finding needs:
-- A clear, concise title
-- Severity level (critical / high / medium / low)
-- Description explaining the problem and its impact
-- Suggested fix with enough detail to implement
-- List of affected files with line numbers
+For each finding, create a task file in `vteam/tasks/backlog/` using this exact format:
+
+**Filename**: `DD-MM-YYYY-HH:mm-<slugified-title>.md` (use current date/time)
+
+**Content**:
+```markdown
+---
+title: <short descriptive title>
+created: <ISO 8601 timestamp>
+status: backlog
+severity: <critical|high|medium|low>
+found-by: code-reviewer
+files:
+  - <file:line>
+---
+
+## Description
+
+<Detailed description of the issue and its impact>
+
+## Suggested Fix
+
+<How to fix it, with enough detail for another agent to implement>
+
+## Affected Files
+
+- `<file:line>` — <what's wrong here>
+```
+
+After creating task files, update `vteam/tasks/overview.md` by appending one line per finding:
+
+```
+- **[backlog]** <date> | <severity> | <title> | `<primary-file>` | [→ backlog/<filename>](backlog/<filename>)
+```
