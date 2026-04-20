@@ -9,24 +9,28 @@ You define agent prompts, triage findings, and review merge requests. vteam hand
 vteam runs Claude in headless mode (`claude -p`) as a subprocess. Each agent invocation is stateless — all memory is external, injected into the prompt as markdown files.
 
 ```
-┌──────────────────────────────────────────────────────┐
-│                    Orchestrator (TypeScript)          │
-│                                                      │
-│  Owns all state: tasks, worktrees, MRs               │
-│                                                      │
-│  ┌──────────┐   ┌──────────┐   ┌──────────────────┐ │
-│  │ Lock mgr │   │ Worktree │   │ MR integration   │ │
-│  │ (mkdir)  │   │ manager  │   │ (gh / glab CLI)  │ │
-│  └──────────┘   └──────────┘   └──────────────────┘ │
-└──────────────┬───────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│                    Orchestrator (TypeScript)                   │
+│                                                               │
+│  Owns all state: tasks, worktrees, MRs                        │
+│                                                               │
+│  ┌─────────────────┐  ┌──────────┐  ┌──────────────────────┐ │
+│  │ Agent            │  │ Task     │  │ Worktree manager     │ │
+│  │ definitions      │  │ manager  │  │                      │ │
+│  └─────────────────┘  └──────────┘  └──────────────────────┘ │
+│  ┌─────────────────┐  ┌──────────────────────────────────┐   │
+│  │ Lock mgr        │  │ MR integration (gh / glab CLI)   │   │
+│  │ (mkdir)         │  │                                  │   │
+│  └─────────────────┘  └──────────────────────────────────┘   │
+└──────────────┬────────────────────────────────────────────────┘
                │ spawns claude -p
                ▼
-┌──────────────────────────────────────────────────────┐
-│                Claude (headless)                      │
-│                                                      │
-│  Owns all intelligence: reads code, finds issues,    │
-│  implements fixes, writes task files, commits         │
-└──────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│                Claude (headless)                               │
+│                                                               │
+│  Owns all intelligence: reads code, finds issues,             │
+│  implements fixes, writes task files, commits                  │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 The orchestrator never reasons about code. Claude never moves task files or pushes branches. This separation means if Claude crashes mid-run, no state is corrupted — the orchestrator applies state transitions only after Claude finishes.
@@ -40,11 +44,7 @@ The orchestrator never reasons about code. Claude never moves task files or push
 
 ## Installation
 
-```bash
-npm install -g vteam
-```
-
-Or run from source:
+vteam is in pre-alpha and not yet published to npm. Run it from source:
 
 ```bash
 git clone git@github.com:Infonautica/vteam.git
@@ -82,16 +82,17 @@ Scaffolds a `vteam/` directory in the current project:
 
 ```
 vteam/
-├── vteam.config.json           # Project-level configuration
-├── code-reviewer/
-│   └── AGENT.md                # Code reviewer prompt/personality
-├── refactorer/
-│   └── AGENT.md                # Refactorer prompt/personality
-├── review-responder/
-│   └── AGENT.md                # Review responder prompt/personality
+├── vteam.config.json               # Project-level configuration
+├── agents/
+│   ├── code-reviewer/
+│   │   └── AGENT.md                # Code reviewer prompt/personality
+│   ├── refactorer/
+│   │   └── AGENT.md                # Refactorer prompt/personality
+│   └── review-responder/
+│       └── AGENT.md                # Review responder prompt/personality
 └── tasks/
-    ├── todo/                   # Findings from code reviewer, ready for implementation
-    └── done/                   # Completed tasks
+    ├── todo/                       # Findings from code reviewer, ready for implementation
+    └── done/                       # Completed tasks
 ```
 
 Also adds `.vteam-worktrees/` to `.gitignore`.
@@ -209,6 +210,20 @@ code-reviewer finds issue
     ┌──────┐      refactorer      ┌──────┐
     │ todo │ ──────────────────▶ │ done │
     └──────┘   branch + MR       └──────┘
+                    │
+                    ▼
+                ┌──────┐
+                │  MR  │◀─── MR update
+                └──────┘
+               ╱        ╲
+        happy ╱          ╲ not happy
+             ▼            ▼
+         merge      human requests tweaks
+                          │
+                          ▼
+                  review-responder
+                  applies suggestions
+                  and pushes code ───────┘
 ```
 
 ### Task file format
@@ -339,6 +354,7 @@ This project has its own `vteam/` directory pointing the agents at `src/`. Run `
 | Package | Purpose |
 |---|---|
 | `commander` | CLI argument parsing |
+| `zod` | Schema validation for config and agent frontmatter |
 
 YAML frontmatter parsing and slug generation are handled by internal modules (`src/frontmatter.ts`, `src/slugify.ts`) with no external dependencies.
 

@@ -1,13 +1,14 @@
 ---
 title: Stale lock removal crashes agent under concurrent access
-created: 2026-04-19T18:35:36Z
-status: todo
+created: "2026-04-19T18:35:36Z"
+status: done
 severity: high
 found-by: code-reviewer
-files:
-  - src/memory/lock.ts:77
+files: ["src/memory/lock.ts:77"]
+completed: "2026-04-20T14:22:19.623Z"
+branch: vteam/2026-04-19-18-35-36-stale-lock-rmsync-throws-on-concurrent-removal
+mr-url: "https://github.com/Infonautica/vteam/pull/12"
 ---
-
 ## Description
 
 In `acquireLock`, when a stale lock is detected, the code calls `rmSync(lockDir, { recursive: true })` without `force: true` and without guarding against a concurrent removal. If two agents detect the same stale lock simultaneously, both enter the `if (isLockStale(lockDir))` branch. The first removes the directory successfully; the second's `rmSync` throws `ENOENT`. Because this call is inside the `catch` block that only handles `EEXIST` errors, the `ENOENT` error is re-thrown (line 84: `throw err`), propagating up through `acquireLock` and crashing the agent process.
