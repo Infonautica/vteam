@@ -104,10 +104,11 @@ export function getRepoSlug(platform: Platform, cwd: string): string {
     ).trim();
   }
   const result = execSync(
-    'glab api "projects/:id" --jq .path_with_namespace',
+    'glab api "projects/:id"',
     { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
   );
-  return result.trim();
+  const project = JSON.parse(result.trim()) as { path_with_namespace: string };
+  return project.path_with_namespace;
 }
 
 function getGitHubReviewComments(
