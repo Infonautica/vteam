@@ -55,7 +55,7 @@ export function createTaskFile(
   const frontmatter: TaskFrontmatter = {
     title: finding.title,
     created: new Date().toISOString(),
-    status: "backlog",
+    status: "todo",
     severity: finding.severity,
     "found-by": foundBy,
     files: finding.files,

@@ -65,16 +65,13 @@ vteam init
 # 2. Edit the config
 $EDITOR vteam/vteam.config.json
 
-# 3. Run the code reviewer — finds issues, writes them to backlog
+# 3. Run the code reviewer — finds issues, writes them to todo
 vteam run code-reviewer
 
-# 4. Triage: move tasks you want fixed from backlog/ to todo/
-mv vteam/tasks/backlog/some-finding.md vteam/tasks/todo/
-
-# 5. Run the refactorer — picks a task, fixes it, pushes a branch, opens a PR
+# 4. Run the refactorer — picks a task, fixes it, pushes a branch, opens a PR
 vteam run refactorer
 
-# 6. Review the PR as you would any other
+# 5. Review the PR as you would any other
 ```
 
 ## Commands
@@ -93,8 +90,7 @@ vteam/
 ├── review-responder/
 │   └── AGENT.md                # Review responder prompt/personality
 └── tasks/
-    ├── backlog/                # Findings from code reviewer
-    ├── todo/                   # Human-triaged tasks ready for implementation
+    ├── todo/                   # Findings from code reviewer, ready for implementation
     └── done/                   # Completed tasks
 ```
 
@@ -106,8 +102,8 @@ Will refuse to run if `vteam/` already exists.
 
 1. Acquires an advisory lock (`vteam/.locks/code-reviewer.lock`)
 2. Reads the agent prompt from `vteam/code-reviewer/AGENT.md`
-3. Scans existing task files in `backlog/`, `todo/`, and `done/` and injects their titles into the prompt so Claude knows what's already been found
-4. Spawns `claude -p` — Claude scans the codebase and creates task files directly in `vteam/tasks/backlog/`
+3. Scans existing task files in `todo/` and `done/` and injects their titles into the prompt so Claude knows what's already been found
+4. Spawns `claude -p` — Claude scans the codebase and creates task files directly in `vteam/tasks/todo/`
 5. Releases the lock
 
 Claude uses its own file tools (Read, Write, Edit) to create findings. The orchestrator just manages the lifecycle around the Claude invocation.
@@ -145,7 +141,7 @@ The intended loop: a reviewer leaves comments on a PR, adds the `vteam:changes-r
 
 ### `vteam status`
 
-Displays task counts by status (backlog, todo, done), lists in-progress todo items with retry counts, shows active worktrees, and prints recent run IDs.
+Displays task counts by status (todo, done), lists in-progress todo items with retry counts, shows active worktrees, and prints recent run IDs.
 
 ### `vteam clean`
 
@@ -210,9 +206,9 @@ excludePaths: [node_modules/, dist/]
 code-reviewer finds issue
         │
         ▼
-    ┌────────┐       human triage       ┌──────┐      refactorer      ┌──────┐
-    │ backlog │ ───────────────────────▶ │ todo │ ──────────────────▶ │ done │
-    └────────┘    mv backlog/ todo/     └──────┘   branch + MR       └──────┘
+    ┌──────┐      refactorer      ┌──────┐
+    │ todo │ ──────────────────▶ │ done │
+    └──────┘   branch + MR       └──────┘
 ```
 
 ### Task file format
@@ -223,7 +219,7 @@ Task files are markdown with YAML frontmatter. Named `YYYY-MM-DD-HH-mm-ss-<slugi
 ---
 title: Missing null check in auth middleware
 created: 2026-04-18T14:30:00Z
-status: backlog
+status: todo
 severity: high
 found-by: code-reviewer
 files:
@@ -260,7 +256,7 @@ The refactorer picks the highest-severity task first.
 
 ## Memory and deduplication
 
-There is no separate overview file. At prompt-build time, the orchestrator scans all task files in `backlog/`, `todo/`, and `done/`, reads their frontmatter titles, and injects a summary list into the agent's prompt. Claude uses this list to avoid reporting duplicate findings.
+There is no separate overview file. At prompt-build time, the orchestrator scans all task files in `todo/` and `done/`, reads their frontmatter titles, and injects a summary list into the agent's prompt. Claude uses this list to avoid reporting duplicate findings.
 
 The orchestrator also does a normalized title comparison as a safety net when creating task files programmatically.
 
@@ -271,7 +267,7 @@ vteam ships with three default agents (code-reviewer, refactorer, review-respond
 ### Code reviewer
 
 - Read-only — scans the codebase, never modifies source files
-- Creates task files in `vteam/tasks/backlog/`
+- Creates task files in `vteam/tasks/todo/`
 - Limited to 5 findings per run (configurable in the AGENT.md prompt)
 - Prioritizes severity: security bugs > performance > code quality
 

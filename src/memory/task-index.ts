@@ -9,7 +9,7 @@ export interface TaskIndex {
 }
 
 export function buildTaskIndex(tasksDir: string): TaskIndex {
-  const statuses: TaskStatus[] = ["backlog", "todo", "done"];
+  const statuses: TaskStatus[] = ["todo", "done"];
   const all: TaskFile[] = [];
   const byStatus = new Map<TaskStatus, TaskFile[]>();
 

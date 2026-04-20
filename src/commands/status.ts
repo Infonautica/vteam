@@ -14,15 +14,13 @@ export async function statusCommand(): Promise<void> {
 
   const index = buildTaskIndex(tasksDir);
 
-  const backlog = index.byStatus.get("backlog") ?? [];
   const todo = index.byStatus.get("todo") ?? [];
   const done = index.byStatus.get("done") ?? [];
 
   console.log("=== vteam status ===\n");
-  console.log(`  Backlog: ${backlog.length} tasks`);
-  console.log(`  Todo:    ${todo.length} tasks`);
-  console.log(`  Done:    ${done.length} tasks`);
-  console.log(`  Total:   ${index.all.length} tasks`);
+  console.log(`  Todo:  ${todo.length} tasks`);
+  console.log(`  Done:  ${done.length} tasks`);
+  console.log(`  Total: ${index.all.length} tasks`);
 
   if (todo.length > 0) {
     console.log("\n--- Todo ---");
@@ -30,13 +28,6 @@ export async function statusCommand(): Promise<void> {
       const retries = t.frontmatter["retry-count"] ?? 0;
       const retryNote = retries > 0 ? ` (retries: ${retries})` : "";
       console.log(`  [${t.frontmatter.severity}] ${t.frontmatter.title}${retryNote}`);
-    }
-  }
-
-  if (backlog.length > 0) {
-    console.log("\n--- Backlog (latest 5) ---");
-    for (const t of backlog.slice(-5)) {
-      console.log(`  [${t.frontmatter.severity}] ${t.frontmatter.title}`);
     }
   }
 

@@ -2,13 +2,12 @@
 
 ## What this project is
 
-An npm package (`vteam`) that orchestrates AI agents powered by `claude -p` (Claude Code's headless mode) to autonomously review codebases and implement fixes. The framework manages a task lifecycle (backlog → todo → done), runs agents in isolated git worktrees, and maintains a shared memory file so stateless agent invocations don't duplicate work.
+An npm package (`vteam`) that orchestrates AI agents powered by `claude -p` (Claude Code's headless mode) to autonomously review codebases and implement fixes. The framework manages a task lifecycle (todo → done), runs agents in isolated git worktrees, and maintains a shared memory file so stateless agent invocations don't duplicate work.
 
 The end user's workflow:
 1. Define agent prompts in `AGENT.md` files
-2. Run code-reviewer — it scans the codebase and writes findings to backlog
-3. Human triages backlog, moves useful tasks to todo
-4. Run refactorer (on a cron) — it picks up a task, implements it in a worktree, creates a branch + MR, moves the task to done
+2. Run code-reviewer — it scans the codebase and writes findings straight to todo
+3. Run refactorer (on a cron) — it picks up a task, implements it in a worktree, creates a branch + MR, moves the task to done
 
 ## Architecture
 
@@ -30,7 +29,7 @@ The orchestrator assembles a layered prompt: AGENT.md (role) → existing task t
 
 Each `claude -p` call is stateless. Memory is external:
 
-- **Task files** — individual markdown files with YAML frontmatter in `backlog/`, `todo/`, or `done/`. Self-contained descriptions of findings. The orchestrator scans these directories at prompt-build time and injects a summary of existing task titles, severities, and statuses into every agent's prompt.
+- **Task files** — individual markdown files with YAML frontmatter in `todo/` or `done/`. Self-contained descriptions of findings. The orchestrator scans these directories at prompt-build time and injects a summary of existing task titles, severities, and statuses into every agent's prompt.
 - **Deduplication** — The prompt builder reads all task files via `buildTaskIndex()` and includes them in the "Existing Tasks" section. Claude avoids reporting duplicates. The orchestrator also does a normalized title comparison as a safety net. No hashing. No separate overview file — task files are the single source of truth.
 
 ### Worktrees

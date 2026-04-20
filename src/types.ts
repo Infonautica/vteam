@@ -1,4 +1,4 @@
-export type TaskStatus = "backlog" | "todo" | "done";
+export type TaskStatus = "todo" | "done";
 
 export type Severity = "critical" | "high" | "medium" | "low";
 

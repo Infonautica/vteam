@@ -33,7 +33,6 @@ export async function initCommand(): Promise<void> {
     resolve(vteamDir, "agents", "code-reviewer"),
     resolve(vteamDir, "agents", "refactorer"),
     resolve(vteamDir, "agents", "review-responder"),
-    resolve(vteamDir, "tasks", "backlog"),
     resolve(vteamDir, "tasks", "todo"),
     resolve(vteamDir, "tasks", "done"),
   ];
@@ -61,7 +60,7 @@ export async function initCommand(): Promise<void> {
   }
 
   // Create .gitkeep files so empty directories are tracked
-  for (const sub of ["backlog", "todo", "done"]) {
+  for (const sub of ["todo", "done"]) {
     writeFileSync(resolve(vteamDir, "tasks", sub, ".gitkeep"), "");
   }
 

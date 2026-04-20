@@ -19,7 +19,7 @@ afterEach(() => {
 
 function createTasksDir(): string {
   const tasksDir = resolve(tmp, "tasks");
-  for (const sub of ["backlog", "todo", "done"]) {
+  for (const sub of ["todo", "done"]) {
     mkdirSync(resolve(tasksDir, sub), { recursive: true });
   }
   return tasksDir;
@@ -27,7 +27,7 @@ function createTasksDir(): string {
 
 function writeTask(
   tasksDir: string,
-  status: "backlog" | "todo" | "done",
+  status: "todo" | "done",
   filename: string,
   fm: TaskFrontmatter,
   body: string,
@@ -63,10 +63,10 @@ describe("buildPrompt", () => {
 
   it("includes existing task titles in user prompt", () => {
     const { agentConfig, tasksDir } = setup();
-    writeTask(tasksDir, "backlog", "task-a.md", {
+    writeTask(tasksDir, "todo", "task-a.md", {
       title: "Null check missing",
       created: "2026-04-19",
-      status: "backlog",
+      status: "todo",
       severity: "high",
       "found-by": "code-reviewer",
       files: ["src/auth.ts:45"],
@@ -143,10 +143,10 @@ describe("buildPrompt", () => {
 
   it("shows tasks from all status directories", () => {
     const { agentConfig, tasksDir } = setup();
-    writeTask(tasksDir, "backlog", "a.md", {
-      title: "Backlog task",
+    writeTask(tasksDir, "todo", "a.md", {
+      title: "Todo task",
       created: "2026-04-19",
-      status: "backlog",
+      status: "todo",
       severity: "high",
       "found-by": "code-reviewer",
       files: ["a.ts"],
@@ -161,7 +161,7 @@ describe("buildPrompt", () => {
     }, "");
 
     const { userPrompt } = buildPrompt(agentConfig, tasksDir);
-    expect(userPrompt).toContain("Backlog task");
+    expect(userPrompt).toContain("Todo task");
     expect(userPrompt).toContain("Done task");
   });
 

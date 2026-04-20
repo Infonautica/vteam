@@ -10,7 +10,7 @@ let tmp: string;
 
 beforeEach(() => {
   tmp = mkdtempSync(join(tmpdir(), "vteam-idx-test-"));
-  for (const sub of ["backlog", "todo", "done"]) {
+  for (const sub of ["todo", "done"]) {
     mkdirSync(resolve(tmp, sub), { recursive: true });
   }
 });
@@ -37,26 +37,24 @@ describe("buildTaskIndex", () => {
     const index = buildTaskIndex(tmp);
     expect(index.all).toHaveLength(0);
     expect(index.titles).toHaveLength(0);
-    expect(index.byStatus.get("backlog")).toEqual([]);
     expect(index.byStatus.get("todo")).toEqual([]);
     expect(index.byStatus.get("done")).toEqual([]);
   });
 
   it("indexes tasks by status", () => {
-    writeTask("backlog", "a.md", "Bug A", "high");
-    writeTask("backlog", "b.md", "Bug B", "low");
+    writeTask("todo", "a.md", "Bug A", "high");
+    writeTask("todo", "b.md", "Bug B", "low");
     writeTask("todo", "c.md", "Bug C", "medium");
     writeTask("done", "d.md", "Bug D", "critical");
 
     const index = buildTaskIndex(tmp);
     expect(index.all).toHaveLength(4);
-    expect(index.byStatus.get("backlog")).toHaveLength(2);
-    expect(index.byStatus.get("todo")).toHaveLength(1);
+    expect(index.byStatus.get("todo")).toHaveLength(3);
     expect(index.byStatus.get("done")).toHaveLength(1);
   });
 
   it("collects all titles", () => {
-    writeTask("backlog", "a.md", "Alpha", "high");
+    writeTask("todo", "a.md", "Alpha", "high");
     writeTask("todo", "b.md", "Beta", "low");
 
     const index = buildTaskIndex(tmp);

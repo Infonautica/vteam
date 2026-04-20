@@ -38,7 +38,7 @@ describe("parseTaskFile", () => {
     const filePath = writeTask(tmp, "task.md", {
       title: "Fix the bug",
       created: "2026-04-19T10:00:00Z",
-      status: "backlog",
+      status: "todo",
       severity: "high",
       "found-by": "code-reviewer",
       files: ["src/foo.ts:10"],
@@ -60,8 +60,8 @@ describe("listTaskFiles", () => {
 
   it("lists only .md files, ignoring .gitkeep", () => {
     mkdirSync(resolve(tmp, "tasks"));
-    writeTask(resolve(tmp, "tasks"), "a.md", { title: "A", status: "backlog", severity: "low", created: "", "found-by": "", files: [] }, "body a");
-    writeTask(resolve(tmp, "tasks"), "b.md", { title: "B", status: "backlog", severity: "high", created: "", "found-by": "", files: [] }, "body b");
+    writeTask(resolve(tmp, "tasks"), "a.md", { title: "A", status: "todo", severity: "low", created: "", "found-by": "", files: [] }, "body a");
+    writeTask(resolve(tmp, "tasks"), "b.md", { title: "B", status: "todo", severity: "high", created: "", "found-by": "", files: [] }, "body b");
     writeFileSync(resolve(tmp, "tasks", ".gitkeep"), "");
 
     const files = listTaskFiles(resolve(tmp, "tasks"));
@@ -85,7 +85,7 @@ describe("generateTaskFilename", () => {
 
 describe("createTaskFile", () => {
   it("creates a markdown file with correct frontmatter and body", () => {
-    mkdirSync(resolve(tmp, "backlog"), { recursive: true });
+    mkdirSync(resolve(tmp, "todo"), { recursive: true });
     const finding: ReviewerFinding = {
       title: "Missing null check",
       severity: "high",
@@ -94,8 +94,8 @@ describe("createTaskFile", () => {
       files: ["src/auth.ts:45"],
     };
 
-    const filename = createTaskFile(resolve(tmp, "backlog"), finding, "code-reviewer");
-    const filePath = resolve(tmp, "backlog", filename);
+    const filename = createTaskFile(resolve(tmp, "todo"), finding, "code-reviewer");
+    const filePath = resolve(tmp, "todo", filename);
     expect(existsSync(filePath)).toBe(true);
 
     const raw = readFileSync(filePath, "utf-8");
@@ -108,7 +108,7 @@ describe("createTaskFile", () => {
   });
 
   it("omits suggested fix section when not provided", () => {
-    mkdirSync(resolve(tmp, "backlog"), { recursive: true });
+    mkdirSync(resolve(tmp, "todo"), { recursive: true });
     const finding: ReviewerFinding = {
       title: "Dead code",
       severity: "low",
@@ -116,8 +116,8 @@ describe("createTaskFile", () => {
       files: ["src/utils.ts:10"],
     };
 
-    const filename = createTaskFile(resolve(tmp, "backlog"), finding, "code-reviewer");
-    const raw = readFileSync(resolve(tmp, "backlog", filename), "utf-8");
+    const filename = createTaskFile(resolve(tmp, "todo"), finding, "code-reviewer");
+    const raw = readFileSync(resolve(tmp, "todo", filename), "utf-8");
     expect(raw).not.toContain("Suggested Fix");
   });
 });
@@ -225,7 +225,7 @@ describe("isDuplicateTitle", () => {
       frontmatter: {
         title: "Missing null check in auth",
         created: "",
-        status: "backlog",
+        status: "todo",
         severity: "high",
         "found-by": "code-reviewer",
         files: [],

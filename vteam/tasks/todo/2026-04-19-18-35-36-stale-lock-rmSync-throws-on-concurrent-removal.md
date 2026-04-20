@@ -1,7 +1,7 @@
 ---
 title: Stale lock removal crashes agent under concurrent access
 created: 2026-04-19T18:35:36Z
-status: backlog
+status: todo
 severity: high
 found-by: code-reviewer
 files:

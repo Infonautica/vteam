@@ -33,7 +33,7 @@ Scan the codebase and identify issues including:
 
 ## What you must do
 
-For each finding, create a task file in `vteam/tasks/backlog/` using this exact format:
+For each finding, create a task file in `vteam/tasks/todo/` using this exact format:
 
 **Filename**: `YYYY-MM-DD-HH-mm-ss-<slugified-title>.md` (use current date/time)
 
@@ -42,7 +42,7 @@ For each finding, create a task file in `vteam/tasks/backlog/` using this exact 
 ---
 title: <short descriptive title>
 created: <ISO 8601 timestamp>
-status: backlog
+status: todo
 severity: <critical|high|medium|low>
 found-by: code-reviewer
 files:
