@@ -30,16 +30,41 @@ export function stringify(body: string, data: object): string {
 
 function parseYaml(block: string): Record<string, unknown> {
   const result: Record<string, unknown> = {};
-  for (const line of block.split("\n")) {
-    const trimmed = line.trim();
-    if (trimmed === "" || trimmed.startsWith("#")) continue;
+  const lines = block.split("\n");
+  let i = 0;
+  while (i < lines.length) {
+    const trimmed = lines[i].trim();
+    if (trimmed === "" || trimmed.startsWith("#")) {
+      i++;
+      continue;
+    }
 
     const colonIdx = trimmed.indexOf(":");
-    if (colonIdx === -1) continue;
+    if (colonIdx === -1) {
+      i++;
+      continue;
+    }
 
     const key = trimmed.slice(0, colonIdx).trim();
     const rawValue = trimmed.slice(colonIdx + 1).trim();
-    result[key] = parseValue(rawValue);
+
+    if (rawValue === "" || rawValue === "null" || rawValue === "~") {
+      const items: unknown[] = [];
+      while (i + 1 < lines.length) {
+        const next = lines[i + 1];
+        const nextTrimmed = next.trim();
+        if (nextTrimmed.startsWith("- ")) {
+          items.push(parseValue(nextTrimmed.slice(2).trim()));
+          i++;
+        } else {
+          break;
+        }
+      }
+      result[key] = items.length > 0 ? items : null;
+    } else {
+      result[key] = parseValue(rawValue);
+    }
+    i++;
   }
   return result;
 }

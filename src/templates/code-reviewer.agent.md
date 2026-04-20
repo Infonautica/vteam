@@ -71,9 +71,9 @@ After creating task files, create a single commit:
 - Commit message format:
 
 ```
-vteam: code review findings
+vteam: <short summary of finding>
 
 <body>
 ```
 
-The body should briefly list the findings (one line per finding with severity and title). This commit message body becomes the pull request description, so write it for a human reviewer who will triage the findings.
+The subject should summarize the finding concisely (e.g. `vteam: Remove unused helper function`). The body should briefly list the findings (one line per finding with severity and title). This commit message body becomes the pull request description, so write it for a human reviewer who will triage the findings.

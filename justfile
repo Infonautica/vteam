@@ -3,6 +3,7 @@ default:
 
 build:
     npx tsc
+    rm -rf dist/templates
     cp -r src/templates dist/templates
 
 dev *args:

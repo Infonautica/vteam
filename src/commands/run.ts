@@ -312,13 +312,18 @@ async function runAgent(
         if (agent.autoMR) {
           console.log("Creating merge request...");
           try {
+            const commitSubject = getCommitSubject(worktreePath);
             const commitBody = getCommitBody(worktreePath);
             const mrBody = commitBody || `Automated by vteam (${agent.name}).${task ? `\n\nTask: ${task.frontmatter.title}` : ""}`;
+            const summary = task?.frontmatter.title || commitSubject.replace(/^vteam:\s*/i, "") || "";
+            const mrTitle = summary
+              ? `vteam: ${agent.name}: ${summary}`
+              : `vteam: ${agent.name}`;
             mrUrl = createMergeRequest({
               platform: config.platform,
               branch: branchName,
               baseBranch: config.baseBranch,
-              title: `vteam: ${task?.frontmatter.title ?? agent.name}`,
+              title: mrTitle,
               body: mrBody,
               labels: agent.mrLabels,
               cwd,
@@ -393,6 +398,17 @@ function hasNewCommit(worktreePath: string, baseBranch: string): boolean {
     return log.trim().length > 0;
   } catch {
     return false;
+  }
+}
+
+function getCommitSubject(worktreePath: string): string {
+  try {
+    return execSync("git log -1 --format=%s", {
+      cwd: worktreePath,
+      encoding: "utf-8",
+    }).trim();
+  } catch {
+    return "";
   }
 }
 

@@ -117,6 +117,25 @@ describe("parse", () => {
     const { data } = parse("---\nfiles: [src/auth.ts:45, src/db.ts:100]\n---\n");
     expect(data.files).toEqual(["src/auth.ts:45", "src/db.ts:100"]);
   });
+
+  it("parses block-style arrays", () => {
+    const { data } = parse(
+      "---\nscanPaths:\n  - src/\n  - lib/\nexcludePaths:\n  - node_modules/\n  - dist/\n---\n"
+    );
+    expect(data.scanPaths).toEqual(["src/", "lib/"]);
+    expect(data.excludePaths).toEqual(["node_modules/", "dist/"]);
+  });
+
+  it("parses single-item block arrays", () => {
+    const { data } = parse("---\npaths:\n  - src/\n---\n");
+    expect(data.paths).toEqual(["src/"]);
+  });
+
+  it("treats key with no value and no list items as null", () => {
+    const { data } = parse("---\nempty:\nnext: value\n---\n");
+    expect(data.empty).toBeNull();
+    expect(data.next).toBe("value");
+  });
 });
 
 describe("stringify", () => {
