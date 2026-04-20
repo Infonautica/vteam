@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import matter from "gray-matter";
+import { parse } from "../frontmatter.js";
 import { buildTaskIndex } from "../memory/task-index.js";
 import type { AgentConfig, TaskFile, PRReviewContext } from "../types.js";
 
@@ -15,7 +15,7 @@ export function buildPrompt(
   review?: PRReviewContext,
 ): PromptParts {
   const raw = readFileSync(agent.agentMdPath, "utf-8");
-  const { content } = matter(raw);
+  const { content } = parse(raw);
 
   const systemPrompt = content.trim();
 

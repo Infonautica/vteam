@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
 import { rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
-import matter from "gray-matter";
+import { stringify } from "../frontmatter.js";
 import { buildPrompt } from "./prompt-builder.js";
 import type { AgentConfig, TaskFile, TaskFrontmatter, PRReviewContext } from "../types.js";
 
@@ -32,7 +32,7 @@ function writeTask(
   fm: TaskFrontmatter,
   body: string,
 ): void {
-  const content = matter.stringify(body, fm);
+  const content = stringify(body, fm);
   writeFileSync(resolve(tasksDir, status, filename), content, "utf-8");
 }
 

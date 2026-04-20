@@ -7,7 +7,7 @@ import {
   unlinkSync,
 } from "node:fs";
 import { resolve, basename } from "node:path";
-import matter from "gray-matter";
+import { parse, stringify } from "../frontmatter.js";
 import slugify from "slugify";
 import type {
   TaskFile,
@@ -18,7 +18,7 @@ import type {
 
 export function parseTaskFile(filePath: string): TaskFile {
   const raw = readFileSync(filePath, "utf-8");
-  const { data, content } = matter(raw);
+  const { data, content } = parse(raw);
   return {
     filename: basename(filePath),
     path: filePath,
@@ -71,7 +71,7 @@ export function createTaskFile(
     .filter(Boolean)
     .join("\n\n");
 
-  const content = matter.stringify(body, frontmatter);
+  const content = stringify(body, frontmatter);
   writeFileSync(filePath, content, "utf-8");
   return filename;
 }
@@ -88,7 +88,7 @@ export function moveTask(
   if (extraFrontmatter) {
     const task = parseTaskFile(srcPath);
     const merged = { ...task.frontmatter, ...extraFrontmatter };
-    const content = matter.stringify(task.body, merged);
+    const content = stringify(task.body, merged);
     writeFileSync(destPath, content, "utf-8");
     unlinkSync(srcPath);
   } else {
@@ -102,7 +102,7 @@ export function updateTaskFrontmatter(
 ): void {
   const task = parseTaskFile(filePath);
   const merged = { ...task.frontmatter, ...updates };
-  const content = matter.stringify(task.body, merged);
+  const content = stringify(task.body, merged);
   writeFileSync(filePath, content, "utf-8");
 }
 

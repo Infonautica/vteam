@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import { execSync } from "node:child_process";
 import { resolve } from "node:path";
-import matter from "gray-matter";
+import { parse } from "../frontmatter.js";
 import { acquireLock, type FileLock } from "../memory/lock.js";
 import { buildPrompt } from "../orchestrator/prompt-builder.js";
 import { runClaudeAgent } from "../orchestrator/agent-runner.js";
@@ -54,7 +54,7 @@ function resolveAgentConfig(
   }
 
   const raw = readFileSync(agentMdPath, "utf-8");
-  const { data } = matter(raw);
+  const { data } = parse(raw);
   const result = agentFrontmatterSchema.safeParse(data);
   if (!result.success) {
     const issues = result.error.issues

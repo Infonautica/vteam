@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 
 import { rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
-import matter from "gray-matter";
+import { parse, stringify } from "../frontmatter.js";
 import {
   parseTaskFile,
   listTaskFiles,
@@ -29,7 +29,7 @@ afterEach(() => {
 function writeTask(dir: string, filename: string, frontmatter: Record<string, unknown>, body: string): string {
   mkdirSync(dir, { recursive: true });
   const filePath = resolve(dir, filename);
-  writeFileSync(filePath, matter.stringify(body, frontmatter), "utf-8");
+  writeFileSync(filePath, stringify(body, frontmatter), "utf-8");
   return filePath;
 }
 
@@ -99,7 +99,7 @@ describe("createTaskFile", () => {
     expect(existsSync(filePath)).toBe(true);
 
     const raw = readFileSync(filePath, "utf-8");
-    const { data, content } = matter(raw);
+    const { data, content } = parse(raw);
     expect(data.title).toBe("Missing null check");
     expect(data.severity).toBe("high");
     expect(data["found-by"]).toBe("code-reviewer");
@@ -165,7 +165,7 @@ describe("moveTask", () => {
     });
 
     const raw = readFileSync(resolve(to, "task.md"), "utf-8");
-    const { data } = matter(raw);
+    const { data } = parse(raw);
     expect(data.status).toBe("done");
     expect(data.completed).toBe("2026-04-19T12:00:00Z");
     expect(data.branch).toBe("vteam/fix-it");
@@ -211,7 +211,7 @@ describe("updateTaskFrontmatter", () => {
 
     updateTaskFrontmatter(filePath, { "retry-count": 1 });
 
-    const { data } = matter(readFileSync(filePath, "utf-8"));
+    const { data } = parse(readFileSync(filePath, "utf-8"));
     expect(data["retry-count"]).toBe(1);
     expect(data.title).toBe("Fix it");
   });

@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
-import matter from "gray-matter";
+import { stringify } from "../frontmatter.js";
 import { buildTaskIndex } from "./task-index.js";
 
 let tmp: string;
@@ -21,7 +21,7 @@ afterEach(() => {
 
 function writeTask(status: string, filename: string, title: string, severity: string): void {
   const dir = resolve(tmp, status);
-  const content = matter.stringify("body", {
+  const content = stringify("body", {
     title,
     created: "2026-04-19T10:00:00Z",
     status,
