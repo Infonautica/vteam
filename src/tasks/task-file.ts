@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { resolve, basename } from "node:path";
 import { parse, stringify } from "../frontmatter.js";
-import slugify from "slugify";
+import { slugify } from "../slugify.js";
 import type {
   TaskFile,
   TaskFrontmatter,
@@ -39,7 +39,7 @@ export function generateTaskFilename(title: string): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const time = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
-  const slug = slugify(title, { lower: true, strict: true });
+  const slug = slugify(title);
   const jitter = Math.random().toString(36).slice(2, 6);
   return `${date}-${time}-${slug}-${jitter}.md`;
 }

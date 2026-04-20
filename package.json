@@ -30,7 +30,6 @@
   "license": "MIT",
   "dependencies": {
     "commander": "^13.1.0",
-    "slugify": "^1.6.6",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
-import slugify from "slugify";
+import { slugify } from "../slugify.js";
 
 export interface WorktreeSession {
   path: string;
@@ -14,7 +14,7 @@ export function createWorktree(
   baseBranch: string,
   worktreeDir: string,
 ): WorktreeSession {
-  const branch = `vteam/${slugify(taskSlug, { lower: true, strict: true })}`;
+  const branch = `vteam/${slugify(taskSlug)}`;
   const worktreePath = resolve(repoRoot, worktreeDir, branch);
 
   try {
