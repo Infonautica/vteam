@@ -75,7 +75,7 @@ export async function acquireLock(
     } catch (err: unknown) {
       if (err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "EEXIST") {
         if (isLockStale(lockDir)) {
-          rmSync(lockDir, { recursive: true });
+          rmSync(lockDir, { recursive: true, force: true });
           continue;
         }
         await sleep(500 + Math.random() * 500);
