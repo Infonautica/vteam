@@ -10,7 +10,7 @@ vteam runs Claude in headless mode (`claude -p`) as a subprocess. Each agent inv
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                 Orchestrator (TypeScript)                   │
+│                      vteam (TypeScript)                     │
 │                                                             │
 │  Owns all state: tasks, worktrees, MRs                      │
 │                                                             │
@@ -205,7 +205,7 @@ excludePaths: [node_modules/, dist/]
 code-reviewer finds issue
         │
         ▼
-    ┌──────┐      refactorer      ┌──────┐
+    ┌──────┐      refactorer     ┌──────┐
     │ todo │ ──────────────────▶ │ done │
     └──────┘   branch + MR       └──────┘
 ```
