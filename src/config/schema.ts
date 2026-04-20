@@ -1,8 +1,22 @@
 import { z } from "zod";
 
+const CRON_FIELD = /^(\*|\d+(-\d+)?)(\/\d+)?((,(\d+(-\d+)?)(\/\d+)?)*)$/;
+
+export function isValidCronExpression(expr: string): boolean {
+  const fields = expr.trim().split(/\s+/);
+  return fields.length === 5 && fields.every((f) => CRON_FIELD.test(f));
+}
+
 export const agentFrontmatterSchema = z
   .object({
     model: z.string().optional(),
+    cron: z
+      .string()
+      .refine(isValidCronExpression, {
+        message:
+          "Invalid cron expression (expected 5 fields: minute hour day month weekday)",
+      })
+      .optional(),
     scanPaths: z.array(z.string()).optional(),
     excludePaths: z.array(z.string()).optional(),
     worktree: z.boolean().optional(),

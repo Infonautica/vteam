@@ -28,6 +28,7 @@ export interface AgentConfig {
   name: string;
   agentMdPath: string;
   model?: string;
+  cron?: string;
   scanPaths?: string[];
   excludePaths?: string[];
   worktree?: boolean;

@@ -45,6 +45,7 @@ Agents are defined at `vteam/agents/<name>/AGENT.md`. Each AGENT.md uses YAML fr
 ```yaml
 ---
 model: sonnet
+cron: "0 */6 * * *"
 worktree: true
 taskInput: true
 autoMR: true
@@ -60,6 +61,7 @@ excludePaths: [node_modules/, dist/]
 - `prLabels` — labels used to filter PRs when `prInput: true` (e.g. `[vteam]`)
 - `prTriggerLabel` — transient label that signals "this PR needs work" (e.g. `vteam:changes-requested`); removed by the orchestrator after the agent pushes
 - `autoMR` (default: `false`) — create a merge request after pushing (requires `worktree: true`)
+- `cron` — cron expression (5 fields: minute hour day month weekday) for scheduling via `vteam cron schedule`
 - `scanPaths` / `excludePaths` — scope injected into the user prompt
 - `model` — Claude model override
 - `mrLabels` — labels applied to created MRs
@@ -75,10 +77,12 @@ src/
 ├── commands/
 │   ├── init.ts                   vteam init — scaffold vteam/ in any project
 │   ├── run.ts                    vteam run <agent> — main orchestration flow
+│   ├── cron.ts                   vteam cron — schedule/clear/status via crontab
 │   ├── status.ts                 vteam status — task board overview
 │   └── clean.ts                  vteam clean — prune worktrees, stale locks
 ├── config/
 │   ├── schema.ts                 Zod schemas for config and agent frontmatter
+│   ├── agent.ts                  Agent resolution and listing from AGENT.md files
 │   └── load.ts                   Reads and validates vteam.config.json
 ├── orchestrator/
 │   ├── agent-runner.ts           Spawns claude -p, captures output
@@ -109,6 +113,20 @@ just lint           # tsc --noEmit + eslint
 just test           # vitest
 just clean          # rm -rf dist/
 ```
+
+### CLI commands
+
+```
+vteam init                  # scaffold vteam/ directory
+vteam run <agent>           # run a specific agent
+vteam status                # show task board overview
+vteam clean                 # prune worktrees, break stale locks
+vteam cron schedule         # install crontab entries for agents with cron patterns
+vteam cron clear            # remove all vteam crontab entries for this project
+vteam cron status           # show currently scheduled agents
+```
+
+`vteam cron schedule` reads `cron` from each agent's frontmatter, resolves the absolute paths for cwd/npx/logs, and writes a fenced block into the user's crontab. Each project gets its own block (keyed by cwd), so multiple projects coexist safely. Logs are appended to `vteam/.logs/<agent>.log`.
 
 ## Before submitting changes
 
