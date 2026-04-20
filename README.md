@@ -9,28 +9,26 @@ You define agent prompts, triage findings, and review merge requests. vteam hand
 vteam runs Claude in headless mode (`claude -p`) as a subprocess. Each agent invocation is stateless — all memory is external, injected into the prompt as markdown files.
 
 ```
-┌───────────────────────────────────────────────────────────────┐
-│                    Orchestrator (TypeScript)                   │
-│                                                               │
-│  Owns all state: tasks, worktrees, MRs                        │
-│                                                               │
-│  ┌─────────────────┐  ┌──────────┐  ┌──────────────────────┐ │
-│  │ Agent            │  │ Task     │  │ Worktree manager     │ │
-│  │ definitions      │  │ manager  │  │                      │ │
-│  └─────────────────┘  └──────────┘  └──────────────────────┘ │
-│  ┌─────────────────┐  ┌──────────────────────────────────┐   │
-│  │ Lock mgr        │  │ MR integration (gh / glab CLI)   │   │
-│  │ (mkdir)         │  │                                  │   │
-│  └─────────────────┘  └──────────────────────────────────┘   │
-└──────────────┬────────────────────────────────────────────────┘
-               │ spawns claude -p
-               ▼
-┌───────────────────────────────────────────────────────────────┐
-│                Claude (headless)                               │
-│                                                               │
-│  Owns all intelligence: reads code, finds issues,             │
-│  implements fixes, writes task files, commits                  │
-└───────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                 Orchestrator (TypeScript)                   │
+│                                                             │
+│  Owns all state: tasks, worktrees, MRs                      │
+│                                                             │
+│  ┌───────────────────┐ ┌────────────┐ ┌──────────────────┐  │
+│  │ Agent definitions │ │ Task mgr   │ │ Worktree mgr     │  │
+│  └───────────────────┘ └────────────┘ └──────────────────┘  │
+│  ┌───────────────────┐ ┌─────────────────────────────────┐  │
+│  │ Lock mgr (mkdir)  │ │ MR integration (gh / glab CLI)  │  │
+│  └───────────────────┘ └─────────────────────────────────┘  │
+└────────────────────────────┬────────────────────────────────┘
+                             │ spawns claude -p
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Claude (headless)                        │
+│                                                             │
+│  Owns all intelligence: reads code, finds issues,           │
+│  implements fixes, writes task files, commits               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 The orchestrator never reasons about code. Claude never moves task files or pushes branches. This separation means if Claude crashes mid-run, no state is corrupted — the orchestrator applies state transitions only after Claude finishes.
@@ -165,12 +163,12 @@ Global settings live in `vteam/vteam.config.json`:
 }
 ```
 
-| Field | Description |
-|---|---|
-| `baseBranch` | Branch to create worktrees from and target MRs against |
-| `platform` | `"github"` or `"gitlab"` — determines which CLI (`gh` / `glab`) is used for MR creation |
-| `worktreeDir` | Where worktrees are created (relative to repo root). Gitignored. |
-| `tasks.maxRetries` | How many times the refactorer retries a failing task before skipping it |
+| Field              | Description                                                                             |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| `baseBranch`       | Branch to create worktrees from and target MRs against                                  |
+| `platform`         | `"github"` or `"gitlab"` — determines which CLI (`gh` / `glab`) is used for MR creation |
+| `worktreeDir`      | Where worktrees are created (relative to repo root). Gitignored.                        |
+| `tasks.maxRetries` | How many times the refactorer retries a failing task before skipping it                 |
 
 ### Agent configuration (AGENT.md frontmatter)
 
@@ -188,18 +186,18 @@ excludePaths: [node_modules/, dist/]
 ---
 ```
 
-| Field | Default | Description |
-|---|---|---|
-| `model` | `"sonnet"` | Claude model (`"sonnet"`, `"opus"`, `"haiku"`) |
-| `worktree` | `false` | Run in an isolated git worktree; push branch on commit |
-| `taskInput` | `false` | Pick a task from `todo/`; manage task lifecycle (mutually exclusive with `prInput`) |
-| `prInput` | `false` | Pick a PR with pending review feedback and check out its branch (requires `worktree: true`, mutually exclusive with `taskInput`) |
-| `prLabels` | — | Labels used to filter PRs when `prInput: true` (e.g. `[vteam]`) |
-| `prTriggerLabel` | — | Transient label signalling "this PR needs work" (e.g. `vteam:changes-requested`); removed after the agent pushes |
-| `autoMR` | `false` | Create a pull/merge request after pushing (requires `worktree: true`) |
-| `mrLabels` | — | Labels applied to created MRs (auto-created if they don't exist) |
-| `scanPaths` | — | Directories to review (empty = entire repo) |
-| `excludePaths` | — | Directories to skip |
+| Field            | Default    | Description                                                                                                                      |
+| ---------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `model`          | `"sonnet"` | Claude model (`"sonnet"`, `"opus"`, `"haiku"`)                                                                                   |
+| `worktree`       | `false`    | Run in an isolated git worktree; push branch on commit                                                                           |
+| `taskInput`      | `false`    | Pick a task from `todo/`; manage task lifecycle (mutually exclusive with `prInput`)                                              |
+| `prInput`        | `false`    | Pick a PR with pending review feedback and check out its branch (requires `worktree: true`, mutually exclusive with `taskInput`) |
+| `prLabels`       | —          | Labels used to filter PRs when `prInput: true` (e.g. `[vteam]`)                                                                  |
+| `prTriggerLabel` | —          | Transient label signalling "this PR needs work" (e.g. `vteam:changes-requested`); removed after the agent pushes                 |
+| `autoMR`         | `false`    | Create a pull/merge request after pushing (requires `worktree: true`)                                                            |
+| `mrLabels`       | —          | Labels applied to created MRs (auto-created if they don't exist)                                                                 |
+| `scanPaths`      | —          | Directories to review (empty = entire repo)                                                                                      |
+| `excludePaths`   | —          | Directories to skip                                                                                                              |
 
 ## Task lifecycle
 
@@ -210,20 +208,6 @@ code-reviewer finds issue
     ┌──────┐      refactorer      ┌──────┐
     │ todo │ ──────────────────▶ │ done │
     └──────┘   branch + MR       └──────┘
-                    │
-                    ▼
-                ┌──────┐
-                │  MR  │◀─── MR update
-                └──────┘
-               ╱        ╲
-        happy ╱          ╲ not happy
-             ▼            ▼
-         merge      human requests tweaks
-                          │
-                          ▼
-                  review-responder
-                  applies suggestions
-                  and pushes code ───────┘
 ```
 
 ### Task file format
@@ -351,21 +335,21 @@ This project has its own `vteam/` directory pointing the agents at `src/`. Run `
 
 ### npm dependencies
 
-| Package | Purpose |
-|---|---|
-| `commander` | CLI argument parsing |
-| `zod` | Schema validation for config and agent frontmatter |
+| Package     | Purpose                                            |
+| ----------- | -------------------------------------------------- |
+| `commander` | CLI argument parsing                               |
+| `zod`       | Schema validation for config and agent frontmatter |
 
 YAML frontmatter parsing and slug generation are handled by internal modules (`src/frontmatter.ts`, `src/slugify.ts`) with no external dependencies.
 
 ### System dependencies
 
-| Tool | Required | Purpose |
-|---|---|---|
-| `claude` | Yes | Claude Code CLI — all agent intelligence |
-| `git` | Yes | Worktree management, branch operations |
-| `gh` | For GitHub | Pull request creation (`gh pr create`) |
-| `glab` | For GitLab | Merge request creation (`glab mr create`) |
+| Tool     | Required   | Purpose                                   |
+| -------- | ---------- | ----------------------------------------- |
+| `claude` | Yes        | Claude Code CLI — all agent intelligence  |
+| `git`    | Yes        | Worktree management, branch operations    |
+| `gh`     | For GitHub | Pull request creation (`gh pr create`)    |
+| `glab`   | For GitLab | Merge request creation (`glab mr create`) |
 
 ## License
 
