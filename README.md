@@ -339,8 +339,8 @@ This project has its own `vteam/` directory pointing the agents at `src/`. Run `
 | Package | Purpose |
 |---|---|
 | `commander` | CLI argument parsing |
-| `gray-matter` | YAML frontmatter parsing/serialization in task markdown files |
-| `slugify` | Generates filesystem-safe slugs for task filenames and branch names |
+
+YAML frontmatter parsing and slug generation are handled by internal modules (`src/frontmatter.ts`, `src/slugify.ts`) with no external dependencies.
 
 ### System dependencies
 
