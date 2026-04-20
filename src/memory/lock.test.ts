@@ -1,9 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
-import { rmSync } from "node:fs";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
 import { acquireLock, breakLock } from "./lock.js";
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return { ...actual, rmSync: vi.fn(actual.rmSync) };
+});
 
 let tmp: string;
 
@@ -66,6 +70,27 @@ describe("acquireLock", () => {
 
     const lock = await acquireLock(resource, "new-agent", 5000);
     expect(existsSync(lockDir)).toBe(true);
+    lock.release();
+  });
+
+  it("calls rmSync with force: true when removing a stale lock", async () => {
+    const resource = resolve(tmp, "my-agent");
+    const lockDir = resource + ".lock";
+    mkdirSync(lockDir);
+    writeFileSync(
+      resolve(lockDir, "info.json"),
+      JSON.stringify({ pid: 999999, timestamp: Date.now(), agent: "dead" }),
+    );
+
+    vi.mocked(rmSync).mockClear();
+
+    const lock = await acquireLock(resource, "new-agent", 5000);
+
+    const staleRemovalCall = vi.mocked(rmSync).mock.calls.find(
+      ([path, opts]) => path === lockDir && (opts as { force?: boolean })?.force === true,
+    );
+    expect(staleRemovalCall).toBeDefined();
+
     lock.release();
   });
 
