@@ -5,6 +5,20 @@ input: pr
 prLabels:
   - vteam
 prTriggerLabel: vteam:changes-requested
+allowedTools:
+  - Read
+  - Edit
+  - Write
+  - Glob
+  - Grep
+  - Bash(git *)
+  - Bash(npm *)
+  - Bash(npx *)
+  - Bash(just *)
+  - Bash(gh *)
+  - Bash(glab *)
+  - Bash(cat *)
+  - Bash(ls *)
 ---
 
 # Review Responder Agent

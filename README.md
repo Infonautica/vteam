@@ -197,6 +197,8 @@ excludePaths: [node_modules/, dist/]
 | `mrLabels`       | —          | Labels applied to created MRs (auto-created if they don't exist)                                                   |
 | `scanPaths`      | —          | Directories to review (empty = entire repo)                                                                        |
 | `excludePaths`   | —          | Directories to skip                                                                                                |
+| `allowedTools`   | —          | Claude Code tools the agent may use (same syntax as `--allowedTools` CLI flag, e.g. `["Read", "Bash(git *)"]`)     |
+| `disallowedTools`| —          | Claude Code tools the agent may NOT use (same syntax as `--disallowedTools` CLI flag)                              |
 
 ## Task lifecycle
 

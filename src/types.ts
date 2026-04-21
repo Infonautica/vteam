@@ -37,6 +37,8 @@ export interface AgentConfig {
   prTriggerLabel?: string;
   autoMR?: boolean;
   mrLabels?: string[];
+  allowedTools?: string[];
+  disallowedTools?: string[];
 }
 
 export interface ReviewComment {

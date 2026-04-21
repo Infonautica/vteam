@@ -20,7 +20,7 @@ The TypeScript orchestrator handles state transitions — creating worktrees, mo
 Each agent is invoked as a `claude -p` subprocess with:
 - `--append-system-prompt-file` — the agent's `AGENT.md` content (via temp file)
 - `--output-format stream-json` + `--verbose` — real-time streaming of tool calls and text
-- `--permission-mode bypassPermissions` — allows all tools in headless mode
+- `--allowedTools` / `--disallowedTools` — per-agent tool permissions from frontmatter (uses the same syntax as native Claude Code CLI flags)
 - `--no-session-persistence` — no session clutter
 
 The orchestrator assembles a layered prompt: AGENT.md (role) → existing task titles (from task file frontmatter) → task content or PR review comments → instructions. The prompt is passed via stdin. Claude uses its own tools (Read, Write, Edit, Bash) to create task files and implement changes directly.
@@ -64,6 +64,8 @@ excludePaths: [node_modules/, dist/]
 - `scanPaths` / `excludePaths` — scope injected into the user prompt
 - `model` — Claude model override
 - `mrLabels` — labels applied to created MRs
+- `allowedTools` — Claude Code tools the agent may use (same syntax as the `--allowedTools` CLI flag, e.g. `["Read", "Bash(git *)"]`)
+- `disallowedTools` — Claude Code tools the agent may NOT use (same syntax as `--disallowedTools`)
 
 The frontmatter is validated via zod on agent load. The markdown body (after frontmatter) becomes the system prompt. `vteam.config.json` contains only global settings (baseBranch, platform, worktreeDir, tasks). Add custom agents by creating `vteam/agents/<name>/AGENT.md` — no config changes needed.
 

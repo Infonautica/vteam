@@ -221,6 +221,8 @@ async function runAgent(
       userPrompt,
       cwd: agentCwd,
       model: agent.model,
+      allowedTools: agent.allowedTools,
+      disallowedTools: agent.disallowedTools,
     });
 
     if (result.exitCode !== 0) {

@@ -7,6 +7,18 @@ autoMR: true
 mrLabels:
   - vteam
   - automated
+allowedTools:
+  - Read
+  - Edit
+  - Write
+  - Glob
+  - Grep
+  - Bash(git *)
+  - Bash(npm *)
+  - Bash(npx *)
+  - Bash(just *)
+  - Bash(cat *)
+  - Bash(ls *)
 ---
 
 # Refactorer Agent

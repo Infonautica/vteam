@@ -31,6 +31,8 @@ export const agentFrontmatterSchema = z
     prTriggerLabel: z.string().optional(),
     autoMR: z.boolean().optional(),
     mrLabels: z.array(z.string()).optional(),
+    allowedTools: z.array(z.string()).optional(),
+    disallowedTools: z.array(z.string()).optional(),
   })
   .refine((agent) => agent.input !== "pr" || agent.worktree, {
     message: 'input: "pr" requires worktree: true',

@@ -9,6 +9,8 @@ interface AgentRunOptions {
   cwd: string;
   model?: string;
   timeoutMs?: number;
+  allowedTools?: string[];
+  disallowedTools?: string[];
 }
 
 interface AgentRunResult {
@@ -62,13 +64,19 @@ export async function runClaudeAgent(
     "--output-format",
     "stream-json",
     "--verbose",
-    "--permission-mode",
-    "bypassPermissions",
     "--no-session-persistence",
   ];
 
   if (options.model) {
     args.push("--model", options.model);
+  }
+
+  if (options.allowedTools?.length) {
+    args.push("--allowedTools", ...options.allowedTools);
+  }
+
+  if (options.disallowedTools?.length) {
+    args.push("--disallowedTools", ...options.disallowedTools);
   }
 
   console.log(`[vteam] System prompt file: ${systemPromptFile}`);

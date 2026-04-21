@@ -7,6 +7,16 @@ scanPaths:
 excludePaths:
   - node_modules/
   - dist/
+allowedTools:
+  - Read
+  - Glob
+  - Grep
+  - Write(vteam/**)
+  - Bash(git add *)
+  - Bash(git commit *)
+  - Bash(git diff *)
+  - Bash(git log *)
+  - Bash(git status)
 ---
 
 # Code Reviewer Agent

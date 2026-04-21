@@ -116,4 +116,26 @@ describe("agentFrontmatterSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("accepts allowedTools", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      allowedTools: ["Read", "Glob", "Grep", "Bash(git *)"],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts disallowedTools", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      disallowedTools: ["Write", "Bash(rm *)"],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts both allowedTools and disallowedTools", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      allowedTools: ["Read", "Edit", "Bash(git *)"],
+      disallowedTools: ["Bash(rm *)"],
+    });
+    expect(result.success).toBe(true);
+  });
 });
