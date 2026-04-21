@@ -5,6 +5,7 @@ import { initCommand } from "./commands/init.js";
 import { runCommand } from "./commands/run.js";
 import { statusCommand } from "./commands/status.js";
 import { cleanCommand } from "./commands/clean.js";
+import { loopStartCommand, loopStatusCommand } from "./commands/loop.js";
 
 const program = new Command();
 
@@ -33,5 +34,19 @@ program
   .command("clean")
   .description("Remove orphaned worktrees, break stale locks")
   .action(cleanCommand);
+
+const loopCmd = program
+  .command("loop")
+  .description("Run agents on their cron schedules in a long-lived process");
+
+loopCmd
+  .command("start")
+  .description("Start the scheduler (runs in foreground)")
+  .action(loopStartCommand);
+
+loopCmd
+  .command("status")
+  .description("Show agents with cron schedules and next fire times")
+  .action(loopStatusCommand);
 
 program.parse();

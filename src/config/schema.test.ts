@@ -105,4 +105,18 @@ describe("agentFrontmatterSchema", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("accepts valid cron pattern", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      cron: "0 */6 * * *",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid cron pattern", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      cron: "not a cron",
+    });
+    expect(result.success).toBe(false);
+  });
 });

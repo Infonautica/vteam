@@ -1,13 +1,9 @@
 import {
-  existsSync,
-  readFileSync,
   mkdirSync,
   writeFileSync,
-  readdirSync,
 } from "node:fs";
 import { execSync } from "node:child_process";
 import { resolve } from "node:path";
-import { parse } from "../frontmatter.js";
 import { acquireLock, type FileLock } from "../memory/lock.js";
 import { buildPrompt } from "../orchestrator/prompt-builder.js";
 import { runClaudeAgent } from "../orchestrator/agent-runner.js";
@@ -33,7 +29,7 @@ import {
   removePRLabel,
 } from "../integrations/pull-request.js";
 import { loadConfig } from "../config/load.js";
-import { agentFrontmatterSchema } from "../config/schema.js";
+import { resolveAgentConfig, listAgentNames } from "../config/agent.js";
 import type {
   AgentConfig,
   VteamConfig,
@@ -41,34 +37,6 @@ import type {
   TaskFile,
   PRReviewContext,
 } from "../types.js";
-
-function resolveAgentConfig(
-  name: string,
-  cwd: string,
-): AgentConfig {
-  const agentDir = resolve(cwd, "vteam", "agents", name);
-  const agentMdPath = resolve(agentDir, "AGENT.md");
-
-  if (!existsSync(agentMdPath)) {
-    throw new Error(`Agent "${name}" not found at ${agentMdPath}`);
-  }
-
-  const raw = readFileSync(agentMdPath, "utf-8");
-  const { data } = parse(raw);
-  const result = agentFrontmatterSchema.safeParse(data);
-  if (!result.success) {
-    const issues = result.error.issues
-      .map((i) => `  - ${i.path.join(".")}: ${i.message}`)
-      .join("\n");
-    throw new Error(`Invalid frontmatter in ${name}/AGENT.md:\n${issues}`);
-  }
-
-  return {
-    name,
-    agentMdPath,
-    ...result.data,
-  };
-}
 
 function writeRunState(cwd: string, state: RunState): void {
   const runsDir = resolve(cwd, "vteam", ".runs");
@@ -87,23 +55,10 @@ function generateRunId(agent: string): string {
 }
 
 function listAgents(cwd: string): void {
-  const agentsDir = resolve(cwd, "vteam", "agents");
-  if (!existsSync(agentsDir)) {
-    console.log("No agents found. Run 'vteam init' first.");
-    return;
-  }
-
-  const entries = readdirSync(agentsDir, { withFileTypes: true });
-  const agentNames = entries
-    .filter(
-      (e) =>
-        e.isDirectory() &&
-        existsSync(resolve(agentsDir, e.name, "AGENT.md")),
-    )
-    .map((e) => e.name);
+  const agentNames = listAgentNames(cwd);
 
   if (agentNames.length === 0) {
-    console.log("No agents found in vteam/agents/.");
+    console.log("No agents found. Run 'vteam init' first.");
     return;
   }
 

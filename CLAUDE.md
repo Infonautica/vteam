@@ -45,6 +45,7 @@ Agents are defined at `vteam/agents/<name>/AGENT.md`. Each AGENT.md uses YAML fr
 ```yaml
 ---
 model: sonnet
+cron: "0 */6 * * *"
 worktree: true
 taskInput: true
 autoMR: true
@@ -60,6 +61,7 @@ excludePaths: [node_modules/, dist/]
 - `prLabels` — labels used to filter PRs when `prInput: true` (e.g. `[vteam]`)
 - `prTriggerLabel` — transient label that signals "this PR needs work" (e.g. `vteam:changes-requested`); removed by the orchestrator after the agent pushes
 - `autoMR` (default: `false`) — create a merge request after pushing (requires `worktree: true`)
+- `cron` — cron expression (5 fields: minute hour day month weekday) for scheduling via `vteam loop start`
 - `scanPaths` / `excludePaths` — scope injected into the user prompt
 - `model` — Claude model override
 - `mrLabels` — labels applied to created MRs
@@ -75,10 +77,12 @@ src/
 ├── commands/
 │   ├── init.ts                   vteam init — scaffold vteam/ in any project
 │   ├── run.ts                    vteam run <agent> — main orchestration flow
+│   ├── loop.ts                   vteam loop — long-lived scheduler process
 │   ├── status.ts                 vteam status — task board overview
 │   └── clean.ts                  vteam clean — prune worktrees, stale locks
 ├── config/
 │   ├── schema.ts                 Zod schemas for config and agent frontmatter
+│   ├── agent.ts                  Agent resolution and listing from AGENT.md files
 │   └── load.ts                   Reads and validates vteam.config.json
 ├── orchestrator/
 │   ├── agent-runner.ts           Spawns claude -p, captures output
@@ -109,6 +113,19 @@ just lint           # tsc --noEmit + eslint
 just test           # vitest
 just clean          # rm -rf dist/
 ```
+
+### CLI commands
+
+```
+vteam init                  # scaffold vteam/ directory
+vteam run <agent>           # run a specific agent
+vteam status                # show task board overview
+vteam clean                 # prune worktrees, break stale locks
+vteam loop start            # start long-lived scheduler for agents with cron patterns
+vteam loop status           # show agents with cron schedules and next fire times
+```
+
+`vteam loop start` runs a foreground Node.js process that schedules agents based on `cron` patterns in their frontmatter (parsed via `croner`). Each agent run spawns a subprocess (`vteam run <agent>`). If an agent is still running when its next cron tick fires, the tick is skipped. Logs are appended to `vteam/.logs/<agent>.log`. Stop with Ctrl+C.
 
 ## Before submitting changes
 
