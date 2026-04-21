@@ -29,7 +29,7 @@ The orchestrator assembles a layered prompt: AGENT.md (role) → existing task t
 
 Each `claude -p` call is stateless. Memory is external:
 
-- **Task files** — individual markdown files with YAML frontmatter in `todo/` or `done/`. Self-contained descriptions of findings. The orchestrator scans these directories at prompt-build time and injects a summary of existing task titles, severities, and statuses into every agent's prompt.
+- **Task files** — individual markdown files with YAML frontmatter in `todo/` or `done/`. Local-only and gitignored — they are workflow state, not source code. The orchestrator scans these directories at prompt-build time and injects a summary of existing task titles, severities, and statuses into every agent's prompt.
 - **Deduplication** — The prompt builder reads all task files via `buildTaskIndex()` and includes them in the "Existing Tasks" section. Claude avoids reporting duplicates. The orchestrator also does a normalized title comparison as a safety net. No hashing. No separate overview file — task files are the single source of truth.
 
 ### Worktrees
@@ -151,6 +151,7 @@ All three must pass before any commit or PR:
 - Task filenames: `YYYY-MM-DD-HH-mm-ss-<slugified-title>.md`
 - Task frontmatter uses YAML via `gray-matter`.
 - Locking uses atomic `mkdir` with stale detection (30 min timeout).
+- Task files are local-only and gitignored (`vteam/tasks/`). The real shared artifacts are PRs.
 - Agents without `worktree` (e.g. code-reviewer) write files directly using Claude's tools. Agents with `worktree` + `input: "task"` (e.g. refactorer) commit changes; the orchestrator handles pushing, MR creation, and moving task files. Agents with `worktree` + `input: "pr"` (e.g. review-responder) check out existing PR branches, commit changes, push, and post a comment on the PR.
 
 ## Keeping CLAUDE.md and README.md current

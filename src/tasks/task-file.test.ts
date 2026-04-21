@@ -58,11 +58,11 @@ describe("listTaskFiles", () => {
     expect(listTaskFiles(resolve(tmp, "nope"))).toEqual([]);
   });
 
-  it("lists only .md files, ignoring .gitkeep", () => {
+  it("lists only .md files", () => {
     mkdirSync(resolve(tmp, "tasks"));
     writeTask(resolve(tmp, "tasks"), "a.md", { title: "A", status: "todo", severity: "low", created: "", "found-by": "", files: [] }, "body a");
     writeTask(resolve(tmp, "tasks"), "b.md", { title: "B", status: "todo", severity: "high", created: "", "found-by": "", files: [] }, "body b");
-    writeFileSync(resolve(tmp, "tasks", ".gitkeep"), "");
+    writeFileSync(resolve(tmp, "tasks", "not-a-task.txt"), "");
 
     const files = listTaskFiles(resolve(tmp, "tasks"));
     expect(files).toHaveLength(2);

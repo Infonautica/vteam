@@ -47,21 +47,17 @@ export async function initCommand(): Promise<void> {
   copyTemplate("vteam.config.json", resolve(vteamDir, "vteam.config.json"));
 
   const gitignorePath = resolve(cwd, ".gitignore");
-  const worktreeEntry = ".vteam-worktrees/";
+  const entries = [".vteam-worktrees/", "vteam/tasks/"];
   if (existsSync(gitignorePath)) {
     const content = readFileSync(gitignorePath, "utf-8");
-    if (!content.includes(worktreeEntry)) {
-      appendFileSync(gitignorePath, `\n${worktreeEntry}\n`);
-      console.log("  Updated .gitignore with .vteam-worktrees/");
+    const missing = entries.filter((e) => !content.includes(e));
+    if (missing.length > 0) {
+      appendFileSync(gitignorePath, `\n${missing.join("\n")}\n`);
+      console.log(`  Updated .gitignore with ${missing.join(", ")}`);
     }
   } else {
-    writeFileSync(gitignorePath, `${worktreeEntry}\n`);
-    console.log("  Created .gitignore with .vteam-worktrees/");
-  }
-
-  // Create .gitkeep files so empty directories are tracked
-  for (const sub of ["todo", "done"]) {
-    writeFileSync(resolve(vteamDir, "tasks", sub, ".gitkeep"), "");
+    writeFileSync(gitignorePath, `${entries.join("\n")}\n`);
+    console.log("  Created .gitignore");
   }
 
   console.log("  Created vteam/agents/code-reviewer/AGENT.md");

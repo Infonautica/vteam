@@ -27,16 +27,17 @@ describe("initCommand", () => {
     expect(existsSync(resolve(tmp, "vteam", "vteam.config.json"))).toBe(true);
     expect(existsSync(resolve(tmp, "vteam", "agents", "code-reviewer", "AGENT.md"))).toBe(true);
     expect(existsSync(resolve(tmp, "vteam", "agents", "refactorer", "AGENT.md"))).toBe(true);
-    expect(existsSync(resolve(tmp, "vteam", "tasks", "todo", ".gitkeep"))).toBe(true);
-    expect(existsSync(resolve(tmp, "vteam", "tasks", "done", ".gitkeep"))).toBe(true);
+    expect(existsSync(resolve(tmp, "vteam", "tasks", "todo"))).toBe(true);
+    expect(existsSync(resolve(tmp, "vteam", "tasks", "done"))).toBe(true);
   });
 
-  it("creates .gitignore with worktree entry", async () => {
+  it("creates .gitignore with worktree and tasks entries", async () => {
     const { initCommand } = await import("./init.js");
     await initCommand();
 
     const gitignore = readFileSync(resolve(tmp, ".gitignore"), "utf-8");
     expect(gitignore).toContain(".vteam-worktrees/");
+    expect(gitignore).toContain("vteam/tasks/");
   });
 
   it("appends to existing .gitignore without duplicating", async () => {
@@ -49,6 +50,7 @@ describe("initCommand", () => {
     const gitignore = readFileSync(resolve(tmp, ".gitignore"), "utf-8");
     expect(gitignore).toContain("node_modules/");
     expect(gitignore).toContain(".vteam-worktrees/");
+    expect(gitignore).toContain("vteam/tasks/");
   });
 
   it("exits if vteam/ already exists", async () => {

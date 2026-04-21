@@ -1,7 +1,5 @@
 ---
 model: sonnet
-worktree: true
-autoMR: true
 scanPaths:
   - src/
 excludePaths:
@@ -12,11 +10,6 @@ allowedTools:
   - Glob
   - Grep
   - Write(vteam/**)
-  - Bash(git add *)
-  - Bash(git commit *)
-  - Bash(git diff *)
-  - Bash(git log *)
-  - Bash(git status)
 ---
 
 # Code Reviewer Agent
@@ -74,18 +67,6 @@ files:
 - `<file:line>` — <what's wrong here>
 ```
 
-## Git
+## Important
 
-After creating task files, create a single commit:
-
-- Stage only the files you created/modified in `vteam/tasks/`
-- One commit only
-- Commit message format:
-
-```
-vteam: <title of the finding>
-
-<body>
-```
-
-The subject line must match the task's `title` frontmatter field, prefixed with `vteam:`. The body should describe the finding's impact and suggested fix. This commit message becomes the pull request title and description, so write it for a human reviewer who will triage the finding.
+Do NOT commit task files. Task files are local-only and gitignored. Just write them to `vteam/tasks/todo/` and you're done.

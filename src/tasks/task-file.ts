@@ -30,7 +30,7 @@ export function parseTaskFile(filePath: string): TaskFile {
 export function listTaskFiles(dir: string): TaskFile[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
-    .filter((f) => f.endsWith(".md") && f !== ".gitkeep")
+    .filter((f) => f.endsWith(".md"))
     .map((f) => parseTaskFile(resolve(dir, f)));
 }
 

@@ -88,12 +88,12 @@ vteam/
 │   │   └── AGENT.md                # Refactorer prompt/personality
 │   └── review-responder/
 │       └── AGENT.md                # Review responder prompt/personality
-└── tasks/
+└── tasks/                          # Local only — gitignored
     ├── todo/                       # Findings from code reviewer, ready for implementation
     └── done/                       # Completed tasks
 ```
 
-Also adds `.vteam-worktrees/` to `.gitignore`.
+Also adds `.vteam-worktrees/` and `vteam/tasks/` to `.gitignore`. Task files are local workflow state, not source code — the real shared artifacts are the PRs that the refactorer creates.
 
 Will refuse to run if `vteam/` already exists.
 
@@ -202,6 +202,8 @@ excludePaths: [node_modules/, dist/]
 
 ## Task lifecycle
 
+Task files live in `vteam/tasks/` and are **gitignored** — they are local workflow state, not version-controlled artifacts. The real output of vteam is the PRs created by the refactorer.
+
 ```
 code-reviewer finds issue
         │
@@ -267,7 +269,8 @@ vteam ships with three default agents (code-reviewer, refactorer, review-respond
 ### Code reviewer
 
 - Read-only — scans the codebase, never modifies source files
-- Creates task files in `vteam/tasks/todo/`
+- Creates task files directly in `vteam/tasks/todo/` (local, gitignored)
+- Does not use a worktree or commit — findings stay local until the refactorer acts on them
 - Limited to 5 findings per run (configurable in the AGENT.md prompt)
 - Prioritizes severity: security bugs > performance > code quality
 
