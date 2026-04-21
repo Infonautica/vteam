@@ -189,7 +189,9 @@ function findGitLabMRsByLabels(
   cwd: string,
 ): ReviewablePR[] {
   const labelParam =
-    labels.length > 0 ? `&labels=${labels.join(",")}` : "";
+    labels.length > 0
+      ? `&labels=${labels.map(shellEscape).join(",")}`
+      : "";
 
   const result = execSync(
     `glab api "projects/:id/merge_requests?state=opened${labelParam}"`,
