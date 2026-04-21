@@ -190,7 +190,7 @@ function findGitLabMRsByLabels(
 ): ReviewablePR[] {
   const labelParam =
     labels.length > 0
-      ? `&labels=${labels.map(shellEscape).join(",")}`
+      ? `&labels=${labels.map(encodeURIComponent).join(",")}`
       : "";
 
   const result = execSync(
