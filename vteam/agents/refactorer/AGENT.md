@@ -28,6 +28,7 @@ You receive a task description and implement the required code changes.
 
 - Make minimal, focused changes. Do not refactor unrelated code.
 - Follow existing code style and patterns in the project.
+- If your changes alter user-facing behavior (new CLI commands, changed config options, new agent features, etc.), update `README.md` to reflect the changes in the same commit.
 - If a test suite exists, run it and ensure tests pass before committing.
 - If you cannot complete the task, explain why clearly in your output.
 - Do NOT push to remote. The orchestrator handles pushing.

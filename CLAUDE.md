@@ -152,9 +152,9 @@ All three must pass before any commit or PR:
 - Locking uses atomic `mkdir` with stale detection (30 min timeout).
 - Agents without `worktree` (e.g. code-reviewer) write files directly using Claude's tools. Agents with `worktree` + `taskInput` (e.g. refactorer) commit changes; the orchestrator handles pushing, MR creation, and moving task files. Agents with `worktree` + `prInput` (e.g. review-responder) check out existing PR branches, commit changes, push, and post a comment on the PR.
 
-## Keeping CLAUDE.md current
+## Keeping CLAUDE.md and README.md current
 
-This file is the primary source of truth for how Claude understands vteam. When you make changes that alter vteam's behavior, update the relevant sections of this file in the same commit. Specifically:
+This file is the primary source of truth for how Claude understands vteam. `README.md` is the public-facing documentation for users. When you make changes that alter vteam's behavior, update the relevant sections of both files in the same commit. Specifically:
 
 - **New or removed CLI commands** — update Commands and project structure
 - **New or changed agent frontmatter fields** — update Agent configuration
@@ -164,7 +164,7 @@ This file is the primary source of truth for how Claude understands vteam. When 
 - **New integrations or platform support** — update v1 scope and constraints
 - **Added, moved, or deleted source files** — update Project structure tree
 
-Do not update CLAUDE.md for internal refactors that don't change external behavior, test additions, or bug fixes that don't alter documented behavior.
+Do not update CLAUDE.md or README.md for internal refactors that don't change external behavior, test additions, or bug fixes that don't alter documented behavior.
 
 ## Dogfooding
 
