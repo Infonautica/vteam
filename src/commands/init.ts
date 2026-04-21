@@ -47,7 +47,7 @@ export async function initCommand(): Promise<void> {
   copyTemplate("vteam.config.json", resolve(vteamDir, "vteam.config.json"));
 
   const gitignorePath = resolve(cwd, ".gitignore");
-  const entries = [".vteam-worktrees/", "vteam/tasks/"];
+  const entries = [".vteam-worktrees/", "vteam/tasks/", "vteam/.locks/", "vteam/.logs/", "vteam/.runs/"];
   if (existsSync(gitignorePath)) {
     const content = readFileSync(gitignorePath, "utf-8");
     const missing = entries.filter((e) => !content.includes(e));

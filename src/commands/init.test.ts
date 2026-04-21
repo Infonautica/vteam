@@ -38,6 +38,9 @@ describe("initCommand", () => {
     const gitignore = readFileSync(resolve(tmp, ".gitignore"), "utf-8");
     expect(gitignore).toContain(".vteam-worktrees/");
     expect(gitignore).toContain("vteam/tasks/");
+    expect(gitignore).toContain("vteam/.locks/");
+    expect(gitignore).toContain("vteam/.logs/");
+    expect(gitignore).toContain("vteam/.runs/");
   });
 
   it("appends to existing .gitignore without duplicating", async () => {
@@ -51,6 +54,9 @@ describe("initCommand", () => {
     expect(gitignore).toContain("node_modules/");
     expect(gitignore).toContain(".vteam-worktrees/");
     expect(gitignore).toContain("vteam/tasks/");
+    expect(gitignore).toContain("vteam/.locks/");
+    expect(gitignore).toContain("vteam/.logs/");
+    expect(gitignore).toContain("vteam/.runs/");
   });
 
   it("exits if vteam/ already exists", async () => {
