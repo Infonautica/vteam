@@ -47,7 +47,7 @@ describe("agentFrontmatterSchema", () => {
     const result = agentFrontmatterSchema.safeParse({
       model: "sonnet",
       worktree: true,
-      taskInput: true,
+      input: "task",
       autoMR: true,
       mrLabels: ["vteam"],
       scanPaths: ["src/"],
@@ -56,50 +56,47 @@ describe("agentFrontmatterSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects autoMR without worktree", () => {
+  it("accepts autoMR without worktree", () => {
     const result = agentFrontmatterSchema.safeParse({
       autoMR: true,
+      worktree: false,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects input pr without worktree", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      input: "pr",
       worktree: false,
     });
     expect(result.success).toBe(false);
   });
 
-  it("accepts autoMR with worktree", () => {
+  it("accepts input pr with worktree", () => {
     const result = agentFrontmatterSchema.safeParse({
-      autoMR: true,
+      input: "pr",
       worktree: true,
     });
     expect(result.success).toBe(true);
   });
 
-  it("rejects prInput without worktree", () => {
+  it("accepts input task without worktree", () => {
     const result = agentFrontmatterSchema.safeParse({
-      prInput: true,
-      worktree: false,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("accepts prInput with worktree", () => {
-    const result = agentFrontmatterSchema.safeParse({
-      prInput: true,
-      worktree: true,
+      input: "task",
     });
     expect(result.success).toBe(true);
   });
 
-  it("rejects prInput combined with taskInput", () => {
+  it("rejects invalid input value", () => {
     const result = agentFrontmatterSchema.safeParse({
-      prInput: true,
-      taskInput: true,
-      worktree: true,
+      input: "invalid",
     });
     expect(result.success).toBe(false);
   });
 
-  it("accepts prLabels with prInput", () => {
+  it("accepts prLabels with input pr", () => {
     const result = agentFrontmatterSchema.safeParse({
-      prInput: true,
+      input: "pr",
       prLabels: ["vteam"],
       worktree: true,
     });

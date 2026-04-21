@@ -1,7 +1,7 @@
 ---
 model: sonnet
 worktree: true
-prInput: true
+input: pr
 prLabels:
   - vteam
 prTriggerLabel: vteam:changes-requested

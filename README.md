@@ -178,7 +178,7 @@ Agent behavior is configured via YAML frontmatter in each agent's `AGENT.md`. Th
 ---
 model: sonnet
 worktree: true
-taskInput: true
+input: task
 autoMR: true
 mrLabels: [vteam, automated]
 scanPaths: [src/]
@@ -186,18 +186,17 @@ excludePaths: [node_modules/, dist/]
 ---
 ```
 
-| Field            | Default    | Description                                                                                                                      |
-| ---------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `model`          | `"sonnet"` | Claude model (`"sonnet"`, `"opus"`, `"haiku"`)                                                                                   |
-| `worktree`       | `false`    | Run in an isolated git worktree; push branch on commit                                                                           |
-| `taskInput`      | `false`    | Pick a task from `todo/`; manage task lifecycle (mutually exclusive with `prInput`)                                              |
-| `prInput`        | `false`    | Pick a PR with pending review feedback and check out its branch (requires `worktree: true`, mutually exclusive with `taskInput`) |
-| `prLabels`       | —          | Labels used to filter PRs when `prInput: true` (e.g. `[vteam]`)                                                                  |
-| `prTriggerLabel` | —          | Transient label signalling "this PR needs work" (e.g. `vteam:changes-requested`); removed after the agent pushes                 |
-| `autoMR`         | `false`    | Create a pull/merge request after pushing (requires `worktree: true`)                                                            |
-| `mrLabels`       | —          | Labels applied to created MRs (auto-created if they don't exist)                                                                 |
-| `scanPaths`      | —          | Directories to review (empty = entire repo)                                                                                      |
-| `excludePaths`   | —          | Directories to skip                                                                                                              |
+| Field            | Default    | Description                                                                                                        |
+| ---------------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
+| `model`          | `"sonnet"` | Claude model (`"sonnet"`, `"opus"`, `"haiku"`)                                                                     |
+| `worktree`       | `false`    | Run in an isolated git worktree; push branch on commit                                                             |
+| `input`          | —          | `"task"` to pick from `todo/` queue; `"pr"` to respond to PR review comments (requires `worktree: true`)          |
+| `prLabels`       | —          | Labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)                                                 |
+| `prTriggerLabel` | —          | Transient label signalling "this PR needs work" (e.g. `vteam:changes-requested`); removed after the agent pushes   |
+| `autoMR`         | `false`    | Create a pull/merge request after pushing                                                                          |
+| `mrLabels`       | —          | Labels applied to created MRs (auto-created if they don't exist)                                                   |
+| `scanPaths`      | —          | Directories to review (empty = entire repo)                                                                        |
+| `excludePaths`   | —          | Directories to skip                                                                                                |
 
 ## Task lifecycle
 

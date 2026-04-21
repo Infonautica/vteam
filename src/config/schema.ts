@@ -26,21 +26,14 @@ export const agentFrontmatterSchema = z
     scanPaths: z.array(z.string()).optional(),
     excludePaths: z.array(z.string()).optional(),
     worktree: z.boolean().optional(),
-    taskInput: z.boolean().optional(),
-    prInput: z.boolean().optional(),
+    input: z.enum(["task", "pr"]).optional(),
     prLabels: z.array(z.string()).optional(),
     prTriggerLabel: z.string().optional(),
     autoMR: z.boolean().optional(),
     mrLabels: z.array(z.string()).optional(),
   })
-  .refine((agent) => !agent.autoMR || agent.worktree, {
-    message: "autoMR requires worktree: true",
-  })
-  .refine((agent) => !agent.prInput || agent.worktree, {
-    message: "prInput requires worktree: true",
-  })
-  .refine((agent) => !(agent.prInput && agent.taskInput), {
-    message: "prInput and taskInput are mutually exclusive",
+  .refine((agent) => agent.input !== "pr" || agent.worktree, {
+    message: 'input: "pr" requires worktree: true',
   });
 
 export const vteamConfigSchema = z.object({

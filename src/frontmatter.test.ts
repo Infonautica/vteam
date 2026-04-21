@@ -272,7 +272,7 @@ describe("roundtrip", () => {
     const data = {
       model: "sonnet",
       worktree: true,
-      taskInput: true,
+      input: "task",
       autoMR: true,
       mrLabels: ["vteam", "automated"],
       scanPaths: ["src/"],
