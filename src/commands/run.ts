@@ -5,7 +5,7 @@ import {
 import { execSync } from "node:child_process";
 import { resolve } from "node:path";
 import { acquireLock, type FileLock } from "../memory/lock.js";
-import { buildPrompt } from "../orchestrator/prompt-builder.js";
+import { buildPrompt, buildOnFinishPrompt } from "../orchestrator/prompt-builder.js";
 import { runClaudeAgent } from "../orchestrator/agent-runner.js";
 import { buildTaskIndex } from "../memory/task-index.js";
 import {
@@ -36,6 +36,7 @@ import type {
   RunState,
   TaskFile,
   PRReviewContext,
+  RunOutcome,
 } from "../types.js";
 
 function writeRunState(cwd: string, state: RunState): void {
@@ -103,11 +104,14 @@ async function runAgent(
   const locksDir = resolve(cwd, "vteam", ".locks");
   mkdirSync(locksDir, { recursive: true });
 
+  const startedAt = new Date().toISOString();
   let agentLock: FileLock | undefined;
   let worktreePath: string | undefined;
   let branchName: string | undefined;
   let task: TaskFile | undefined;
   let reviewContext: PRReviewContext | undefined;
+  let prUrl: string | undefined;
+  let runOutcome: RunOutcome | undefined;
 
   try {
     console.log("Acquiring lock...");
@@ -167,7 +171,7 @@ async function runAgent(
       runId,
       agent: agent.name,
       status: "started",
-      startedAt: new Date().toISOString(),
+      startedAt,
       ...(task ? { taskFile: task.filename } : {}),
     };
     writeRunState(cwd, runState);
@@ -264,7 +268,6 @@ async function runAgent(
           }
         }
 
-        let mrUrl: string | undefined;
         if (agent.autoPR) {
           console.log("Creating pull request...");
           try {
@@ -275,7 +278,7 @@ async function runAgent(
             const prTitle = summary
               ? `vteam: ${agent.name}: ${summary}`
               : `vteam: ${agent.name}`;
-            mrUrl = createMergeRequest({
+            prUrl = createMergeRequest({
               platform: config.platform,
               branch: branchName,
               baseBranch: config.baseBranch,
@@ -284,7 +287,7 @@ async function runAgent(
               labels: agent.prCreateLabels,
               cwd,
             });
-            console.log(`PR created: ${mrUrl}`);
+            console.log(`PR created: ${prUrl}`);
           } catch (mrErr) {
             console.error(
               "PR creation failed:",
@@ -301,7 +304,7 @@ async function runAgent(
             status: "done",
             completed: new Date().toISOString(),
             branch: branchName,
-            ...(mrUrl ? { "pr-url": mrUrl } : {}),
+            ...(prUrl ? { "pr-url": prUrl } : {}),
           });
           console.log("Task completed.");
         }
@@ -320,28 +323,86 @@ async function runAgent(
     }
 
     console.log(`\n${agent.name} finished.`);
+    const completedAt = new Date().toISOString();
     runState.status = "completed";
-    runState.completedAt = new Date().toISOString();
+    runState.completedAt = completedAt;
     writeRunState(cwd, runState);
+
+    runOutcome = {
+      agent: agent.name,
+      status: "completed",
+      startedAt,
+      completedAt,
+      task: task ? { title: task.frontmatter.title, severity: task.frontmatter.severity, files: task.frontmatter.files } : undefined,
+      branch: branchName,
+      prUrl,
+      reviewedPR: reviewContext ? { number: reviewContext.pr.number, title: reviewContext.pr.title, url: reviewContext.pr.url } : undefined,
+    };
   } catch (err) {
-    console.error(
-      `${agent.name} failed:`,
-      err instanceof Error ? err.message : err,
-    );
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(`${agent.name} failed:`, errorMsg);
+    const failedAt = new Date().toISOString();
     writeRunState(cwd, {
       runId,
       agent: agent.name,
       status: "failed",
-      startedAt: new Date().toISOString(),
-      error: err instanceof Error ? err.message : String(err),
+      startedAt,
+      error: errorMsg,
     });
-    process.exit(1);
+
+    runOutcome = {
+      agent: agent.name,
+      status: "failed",
+      startedAt,
+      completedAt: failedAt,
+      error: errorMsg,
+      task: task ? { title: task.frontmatter.title, severity: task.frontmatter.severity, files: task.frontmatter.files } : undefined,
+      branch: branchName,
+      reviewedPR: reviewContext ? { number: reviewContext.pr.number, title: reviewContext.pr.title, url: reviewContext.pr.url } : undefined,
+    };
   } finally {
+    if (runOutcome) {
+      await runOnFinishHook(agent, runOutcome, cwd);
+    }
     if (worktreePath) {
       console.log("Cleaning up worktree...");
       removeWorktree(cwd, worktreePath);
     }
     agentLock?.release();
+    if (runOutcome?.status === "failed") {
+      process.exit(1);
+    }
+  }
+}
+
+async function runOnFinishHook(
+  agent: AgentConfig,
+  outcome: RunOutcome,
+  cwd: string,
+): Promise<void> {
+  if (!agent.onFinish) return;
+
+  console.log(`\nRunning on-finish hook for ${agent.name}...`);
+  const { systemPrompt, userPrompt } = buildOnFinishPrompt(
+    agent.onFinish,
+    outcome,
+  );
+
+  try {
+    await runClaudeAgent({
+      systemPrompt,
+      userPrompt,
+      cwd,
+      model: agent.onFinish.model,
+      allowedTools: agent.onFinish.allowedTools,
+      disallowedTools: agent.onFinish.disallowedTools,
+    });
+    console.log("On-finish hook completed.");
+  } catch (hookErr) {
+    console.error(
+      "On-finish hook failed:",
+      hookErr instanceof Error ? hookErr.message : hookErr,
+    );
   }
 }
 

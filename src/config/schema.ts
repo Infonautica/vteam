@@ -38,6 +38,12 @@ export const agentFrontmatterSchema = z
     message: 'input: "pr" requires worktree: true',
   });
 
+export const onFinishFrontmatterSchema = z.object({
+  model: z.string().optional(),
+  allowedTools: z.array(z.string()).optional(),
+  disallowedTools: z.array(z.string()).optional(),
+});
+
 export const vteamConfigSchema = z.object({
   baseBranch: z.string(),
   platform: z.enum(["github", "gitlab"]),

@@ -69,6 +69,23 @@ excludePaths: [node_modules/, dist/]
 
 The frontmatter is validated via zod on agent load. The markdown body (after frontmatter) becomes the system prompt. `vteam.config.json` contains only global settings (baseBranch, platform, worktreeDir, tasks). Add custom agents by creating `vteam/agents/<name>/AGENT.md` — no config changes needed.
 
+### On-finish hooks
+
+An agent can optionally have an `ON_FINISH.md` file at `vteam/agents/<name>/ON_FINISH.md`. When present, the orchestrator spawns a second `claude -p` call after the agent run completes (both success and failure). The hook receives a structured summary of the run outcome (status, branch, PR URL, task info, error) as its user prompt.
+
+The ON_FINISH.md uses YAML frontmatter for its own configuration:
+
+```yaml
+---
+model: haiku
+allowedTools: ["Bash(curl *)", "mcp__slack__send_message"]
+---
+
+Post a notification to #eng-prs with the run result.
+```
+
+Supported frontmatter fields: `model`, `allowedTools`, `disallowedTools`. The markdown body becomes the hook's system prompt. The hook runs in the main project directory (not the worktree) and its failure does not affect the agent run's exit status.
+
 ## Project structure
 
 ```

@@ -24,6 +24,13 @@ export interface TaskFile {
   body: string;
 }
 
+export interface OnFinishConfig {
+  onFinishMdPath: string;
+  model?: string;
+  allowedTools?: string[];
+  disallowedTools?: string[];
+}
+
 export interface AgentConfig {
   name: string;
   agentMdPath: string;
@@ -39,6 +46,19 @@ export interface AgentConfig {
   prCreateLabels?: string[];
   allowedTools?: string[];
   disallowedTools?: string[];
+  onFinish?: OnFinishConfig;
+}
+
+export interface RunOutcome {
+  agent: string;
+  status: "completed" | "failed";
+  startedAt: string;
+  completedAt: string;
+  error?: string;
+  task?: { title: string; severity: Severity; files: string[] };
+  branch?: string;
+  prUrl?: string;
+  reviewedPR?: { number: number; title: string; url: string };
 }
 
 export interface ReviewComment {

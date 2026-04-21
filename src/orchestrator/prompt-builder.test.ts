@@ -4,8 +4,8 @@ import { rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
 import { stringify } from "../frontmatter.js";
-import { buildPrompt } from "./prompt-builder.js";
-import type { AgentConfig, TaskFile, TaskFrontmatter, PRReviewContext } from "../types.js";
+import { buildPrompt, buildOnFinishPrompt } from "./prompt-builder.js";
+import type { AgentConfig, TaskFile, TaskFrontmatter, PRReviewContext, RunOutcome } from "../types.js";
 
 let tmp: string;
 
@@ -209,5 +209,107 @@ describe("buildPrompt", () => {
     const { userPrompt } = buildPrompt(agentConfig, tasksDir);
     expect(userPrompt).not.toContain("Pull Request");
     expect(userPrompt).not.toContain("Review Comments");
+  });
+});
+
+describe("buildOnFinishPrompt", () => {
+  function setupOnFinish(): string {
+    const onFinishPath = resolve(tmp, "ON_FINISH.md");
+    writeFileSync(
+      onFinishPath,
+      "---\nmodel: haiku\nallowedTools: [Bash(curl *)]\n---\n\nPost a Slack notification with the run result.",
+      "utf-8",
+    );
+    return onFinishPath;
+  }
+
+  it("uses ON_FINISH.md body as system prompt", () => {
+    const path = setupOnFinish();
+    const outcome: RunOutcome = {
+      agent: "refactorer",
+      status: "completed",
+      startedAt: "2026-04-21T10:00:00Z",
+      completedAt: "2026-04-21T10:05:00Z",
+    };
+    const { systemPrompt } = buildOnFinishPrompt({ onFinishMdPath: path }, outcome);
+    expect(systemPrompt).toContain("Slack notification");
+    expect(systemPrompt).not.toContain("model:");
+  });
+
+  it("includes run outcome in user prompt", () => {
+    const path = setupOnFinish();
+    const outcome: RunOutcome = {
+      agent: "refactorer",
+      status: "completed",
+      startedAt: "2026-04-21T10:00:00Z",
+      completedAt: "2026-04-21T10:05:00Z",
+    };
+    const { userPrompt } = buildOnFinishPrompt({ onFinishMdPath: path }, outcome);
+    expect(userPrompt).toContain("refactorer");
+    expect(userPrompt).toContain("completed");
+    expect(userPrompt).toContain("2026-04-21T10:00:00Z");
+  });
+
+  it("includes task details when present", () => {
+    const path = setupOnFinish();
+    const outcome: RunOutcome = {
+      agent: "refactorer",
+      status: "completed",
+      startedAt: "2026-04-21T10:00:00Z",
+      completedAt: "2026-04-21T10:05:00Z",
+      task: { title: "Fix null check", severity: "high", files: ["src/auth.ts:45"] },
+      branch: "vteam/fix-null-check",
+      prUrl: "https://github.com/org/repo/pull/42",
+    };
+    const { userPrompt } = buildOnFinishPrompt({ onFinishMdPath: path }, outcome);
+    expect(userPrompt).toContain("Fix null check");
+    expect(userPrompt).toContain("high");
+    expect(userPrompt).toContain("src/auth.ts:45");
+    expect(userPrompt).toContain("vteam/fix-null-check");
+    expect(userPrompt).toContain("https://github.com/org/repo/pull/42");
+  });
+
+  it("includes error on failure", () => {
+    const path = setupOnFinish();
+    const outcome: RunOutcome = {
+      agent: "refactorer",
+      status: "failed",
+      startedAt: "2026-04-21T10:00:00Z",
+      completedAt: "2026-04-21T10:01:00Z",
+      error: "Claude exited with code 1",
+    };
+    const { userPrompt } = buildOnFinishPrompt({ onFinishMdPath: path }, outcome);
+    expect(userPrompt).toContain("failed");
+    expect(userPrompt).toContain("Claude exited with code 1");
+  });
+
+  it("includes reviewed PR details", () => {
+    const path = setupOnFinish();
+    const outcome: RunOutcome = {
+      agent: "review-responder",
+      status: "completed",
+      startedAt: "2026-04-21T10:00:00Z",
+      completedAt: "2026-04-21T10:05:00Z",
+      reviewedPR: { number: 42, title: "Fix auth", url: "https://github.com/org/repo/pull/42" },
+    };
+    const { userPrompt } = buildOnFinishPrompt({ onFinishMdPath: path }, outcome);
+    expect(userPrompt).toContain("Reviewed PR");
+    expect(userPrompt).toContain("#42");
+    expect(userPrompt).toContain("Fix auth");
+  });
+
+  it("omits optional sections when not present", () => {
+    const path = setupOnFinish();
+    const outcome: RunOutcome = {
+      agent: "code-reviewer",
+      status: "completed",
+      startedAt: "2026-04-21T10:00:00Z",
+      completedAt: "2026-04-21T10:05:00Z",
+    };
+    const { userPrompt } = buildOnFinishPrompt({ onFinishMdPath: path }, outcome);
+    expect(userPrompt).not.toContain("## Task");
+    expect(userPrompt).not.toContain("## Branch");
+    expect(userPrompt).not.toContain("## Error");
+    expect(userPrompt).not.toContain("## Reviewed PR");
   });
 });

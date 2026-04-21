@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { vteamConfigSchema, agentFrontmatterSchema } from "./schema.js";
+import { vteamConfigSchema, agentFrontmatterSchema, onFinishFrontmatterSchema } from "./schema.js";
 
 describe("vteamConfigSchema", () => {
   const validConfig = {
@@ -135,6 +135,29 @@ describe("agentFrontmatterSchema", () => {
     const result = agentFrontmatterSchema.safeParse({
       allowedTools: ["Read", "Edit", "Bash(git *)"],
       disallowedTools: ["Bash(rm *)"],
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("onFinishFrontmatterSchema", () => {
+  it("accepts empty frontmatter", () => {
+    const result = onFinishFrontmatterSchema.safeParse({});
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts model and tool permissions", () => {
+    const result = onFinishFrontmatterSchema.safeParse({
+      model: "haiku",
+      allowedTools: ["Bash(curl *)"],
+      disallowedTools: ["Write"],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts only model", () => {
+    const result = onFinishFrontmatterSchema.safeParse({
+      model: "sonnet",
     });
     expect(result.success).toBe(true);
   });

@@ -202,6 +202,32 @@ excludePaths: [node_modules/, dist/]
 | `allowedTools`    | —          | Claude Code tools the agent may use (same syntax as `--allowedTools` CLI flag, e.g. `["Read", "Bash(git *)"]`)   |
 | `disallowedTools` | —          | Claude Code tools the agent may NOT use (same syntax as `--disallowedTools` CLI flag)                            |
 
+### On-finish hooks (ON_FINISH.md)
+
+Place an `ON_FINISH.md` file alongside `AGENT.md` to run a post-run hook. After an agent completes (success or failure), the orchestrator spawns a second `claude -p` call with the run outcome injected as context.
+
+This lets you add notifications, logging, or any other post-run action without modifying vteam itself — Claude handles the integration using whatever MCPs or CLI tools are available in your environment.
+
+```yaml
+---
+model: haiku
+allowedTools: ["Bash(curl *)", "mcp__slack__send_message"]
+---
+
+You are a notification bot. Post the run result to the #eng-prs Slack channel.
+If the run failed, also ping @oncall.
+```
+
+The user prompt is auto-generated from the run outcome and includes: agent name, status (completed/failed), timestamps, task details, branch name, PR URL, reviewed PR info, and error message (if any).
+
+| Field             | Default | Description                                           |
+| ----------------- | ------- | ----------------------------------------------------- |
+| `model`           | —       | Claude model override for the hook                    |
+| `allowedTools`    | —       | Tools the hook may use                                |
+| `disallowedTools` | —       | Tools the hook may NOT use                            |
+
+The hook runs in the main project directory (not the worktree). Hook failures are logged but do not affect the agent run's exit status. The hook is opt-in — agents without an `ON_FINISH.md` skip it entirely.
+
 ## Task lifecycle
 
 Task files live in `vteam/tasks/` and are **gitignored** — they are local workflow state, not version-controlled artifacts. The real output of vteam is the PRs created by the refactorer.

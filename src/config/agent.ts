@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { parse } from "../frontmatter.js";
-import { agentFrontmatterSchema } from "./schema.js";
-import type { AgentConfig } from "../types.js";
+import { agentFrontmatterSchema, onFinishFrontmatterSchema } from "./schema.js";
+import type { AgentConfig, OnFinishConfig } from "../types.js";
 
 export function resolveAgentConfig(
   name: string,
@@ -25,10 +25,26 @@ export function resolveAgentConfig(
     throw new Error(`Invalid frontmatter in ${name}/AGENT.md:\n${issues}`);
   }
 
+  let onFinish: OnFinishConfig | undefined;
+  const onFinishPath = resolve(agentDir, "ON_FINISH.md");
+  if (existsSync(onFinishPath)) {
+    const rawOnFinish = readFileSync(onFinishPath, "utf-8");
+    const { data: onFinishData } = parse(rawOnFinish);
+    const onFinishResult = onFinishFrontmatterSchema.safeParse(onFinishData);
+    if (!onFinishResult.success) {
+      const issues = onFinishResult.error.issues
+        .map((i) => `  - ${i.path.join(".")}: ${i.message}`)
+        .join("\n");
+      throw new Error(`Invalid frontmatter in ${name}/ON_FINISH.md:\n${issues}`);
+    }
+    onFinish = { onFinishMdPath: onFinishPath, ...onFinishResult.data };
+  }
+
   return {
     name,
     agentMdPath,
     ...result.data,
+    ...(onFinish ? { onFinish } : {}),
   };
 }
 

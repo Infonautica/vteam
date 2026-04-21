@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { parse } from "../frontmatter.js";
 import { buildTaskIndex } from "../memory/task-index.js";
-import type { AgentConfig, TaskFile, PRReviewContext } from "../types.js";
+import type { AgentConfig, TaskFile, PRReviewContext, OnFinishConfig, RunOutcome } from "../types.js";
 
 interface PromptParts {
   systemPrompt: string;
@@ -55,6 +55,50 @@ export function buildPrompt(
 
   const userPrompt = sections.join("\n\n");
   return { systemPrompt, userPrompt };
+}
+
+export function buildOnFinishPrompt(
+  onFinish: OnFinishConfig,
+  outcome: RunOutcome,
+): PromptParts {
+  const raw = readFileSync(onFinish.onFinishMdPath, "utf-8");
+  const { content } = parse(raw);
+  const systemPrompt = content.trim();
+
+  const sections: string[] = [];
+
+  const outcomeLines = [
+    `- Agent: ${outcome.agent}`,
+    `- Status: ${outcome.status}`,
+    `- Started: ${outcome.startedAt}`,
+    `- Completed: ${outcome.completedAt}`,
+  ];
+  sections.push(`## Run Outcome\n\n${outcomeLines.join("\n")}`);
+
+  if (outcome.task) {
+    sections.push(
+      `## Task\n\n- Title: ${outcome.task.title}\n- Severity: ${outcome.task.severity}\n- Files: ${outcome.task.files.join(", ")}`,
+    );
+  }
+
+  if (outcome.branch || outcome.prUrl) {
+    const lines: string[] = [];
+    if (outcome.branch) lines.push(`- Branch: ${outcome.branch}`);
+    if (outcome.prUrl) lines.push(`- PR URL: ${outcome.prUrl}`);
+    sections.push(`## Branch & PR\n\n${lines.join("\n")}`);
+  }
+
+  if (outcome.reviewedPR) {
+    sections.push(
+      `## Reviewed PR\n\n- Number: #${outcome.reviewedPR.number}\n- Title: ${outcome.reviewedPR.title}\n- URL: ${outcome.reviewedPR.url}`,
+    );
+  }
+
+  if (outcome.error) {
+    sections.push(`## Error\n\n${outcome.error}`);
+  }
+
+  return { systemPrompt, userPrompt: sections.join("\n\n") };
 }
 
 function buildReviewSection(review: PRReviewContext): string {
