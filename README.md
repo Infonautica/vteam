@@ -1,5 +1,7 @@
 # vteam
 
+> **Alpha Stage.** APIs, configuration formats, and CLI commands may change.
+
 A virtual development team framework that orchestrates AI agents powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to autonomously review codebases and implement fixes.
 
 You define agent prompts, triage findings, and review merge requests. vteam handles everything else: scheduling agent runs, managing task lifecycle, isolating work in git worktrees, and creating branches and pull requests.
@@ -186,19 +188,19 @@ excludePaths: [node_modules/, dist/]
 ---
 ```
 
-| Field            | Default    | Description                                                                                                        |
-| ---------------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
-| `model`          | `"sonnet"` | Claude model (`"sonnet"`, `"opus"`, `"haiku"`)                                                                     |
-| `worktree`       | `false`    | Run in an isolated git worktree; push branch on commit                                                             |
-| `input`          | —          | `"task"` to pick from `todo/` queue; `"pr"` to respond to PR review comments (requires `worktree: true`)          |
-| `prLabels`       | —          | Labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)                                                 |
-| `prTriggerLabel` | —          | Transient label signalling "this PR needs work" (e.g. `vteam:changes-requested`); removed after the agent pushes   |
-| `autoMR`         | `false`    | Create a pull/merge request after pushing                                                                          |
-| `mrLabels`       | —          | Labels applied to created MRs (auto-created if they don't exist)                                                   |
-| `scanPaths`      | —          | Directories to review (empty = entire repo)                                                                        |
-| `excludePaths`   | —          | Directories to skip                                                                                                |
-| `allowedTools`   | —          | Claude Code tools the agent may use (same syntax as `--allowedTools` CLI flag, e.g. `["Read", "Bash(git *)"]`)     |
-| `disallowedTools`| —          | Claude Code tools the agent may NOT use (same syntax as `--disallowedTools` CLI flag)                              |
+| Field             | Default    | Description                                                                                                      |
+| ----------------- | ---------- | ---------------------------------------------------------------------------------------------------------------- |
+| `model`           | `"sonnet"` | Claude model (`"sonnet"`, `"opus"`, `"haiku"`)                                                                   |
+| `worktree`        | `false`    | Run in an isolated git worktree; push branch on commit                                                           |
+| `input`           | —          | `"task"` to pick from `todo/` queue; `"pr"` to respond to PR review comments (requires `worktree: true`)         |
+| `prLabels`        | —          | Labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)                                                |
+| `prTriggerLabel`  | —          | Transient label signalling "this PR needs work" (e.g. `vteam:changes-requested`); removed after the agent pushes |
+| `autoMR`          | `false`    | Create a pull/merge request after pushing                                                                        |
+| `mrLabels`        | —          | Labels applied to created MRs (auto-created if they don't exist)                                                 |
+| `scanPaths`       | —          | Directories to review (empty = entire repo)                                                                      |
+| `excludePaths`    | —          | Directories to skip                                                                                              |
+| `allowedTools`    | —          | Claude Code tools the agent may use (same syntax as `--allowedTools` CLI flag, e.g. `["Read", "Bash(git *)"]`)   |
+| `disallowedTools` | —          | Claude Code tools the agent may NOT use (same syntax as `--disallowedTools` CLI flag)                            |
 
 ## Task lifecycle
 
