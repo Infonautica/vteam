@@ -48,17 +48,17 @@ describe("agentFrontmatterSchema", () => {
       model: "sonnet",
       worktree: true,
       input: "task",
-      autoMR: true,
-      mrLabels: ["vteam"],
+      autoPR: true,
+      prCreateLabels: ["vteam"],
       scanPaths: ["src/"],
       excludePaths: ["node_modules/"],
     });
     expect(result.success).toBe(true);
   });
 
-  it("accepts autoMR without worktree", () => {
+  it("accepts autoPR without worktree", () => {
     const result = agentFrontmatterSchema.safeParse({
-      autoMR: true,
+      autoPR: true,
       worktree: false,
     });
     expect(result.success).toBe(true);
@@ -94,10 +94,10 @@ describe("agentFrontmatterSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("accepts prLabels with input pr", () => {
+  it("accepts prFilterLabels with input pr", () => {
     const result = agentFrontmatterSchema.safeParse({
       input: "pr",
-      prLabels: ["vteam"],
+      prFilterLabels: ["vteam"],
       worktree: true,
     });
     expect(result.success).toBe(true);

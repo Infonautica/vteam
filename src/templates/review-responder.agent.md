@@ -2,7 +2,7 @@
 model: sonnet
 worktree: true
 input: pr
-prLabels:
+prFilterLabels:
   - vteam
 prTriggerLabel: vteam:changes-requested
 allowedTools:

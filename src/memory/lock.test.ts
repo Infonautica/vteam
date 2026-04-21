@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { acquireLock, breakLock } from "./lock.js";
 
 vi.mock("node:fs", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("node:fs")>();
+  const actual = await importOriginal();
   return { ...actual, rmSync: vi.fn(actual.rmSync) };
 });
 

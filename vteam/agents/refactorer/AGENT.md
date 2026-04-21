@@ -3,8 +3,8 @@ model: sonnet
 cron: "*/5 * * * *"
 worktree: true
 input: task
-autoMR: true
-mrLabels:
+autoPR: true
+prCreateLabels:
   - vteam
   - automated
 allowedTools:

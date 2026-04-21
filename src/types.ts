@@ -14,7 +14,7 @@ export interface TaskFrontmatter {
   "retry-count"?: number;
   completed?: string;
   branch?: string;
-  "mr-url"?: string;
+  "pr-url"?: string;
 }
 
 export interface TaskFile {
@@ -33,10 +33,10 @@ export interface AgentConfig {
   excludePaths?: string[];
   worktree?: boolean;
   input?: "task" | "pr";
-  prLabels?: string[];
+  prFilterLabels?: string[];
   prTriggerLabel?: string;
-  autoMR?: boolean;
-  mrLabels?: string[];
+  autoPR?: boolean;
+  prCreateLabels?: string[];
   allowedTools?: string[];
   disallowedTools?: string[];
 }

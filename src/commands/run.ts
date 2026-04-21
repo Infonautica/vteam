@@ -69,7 +69,7 @@ function listAgents(cwd: string): void {
       const flags = [
         agent.worktree ? "worktree" : null,
         agent.input ? `input: ${agent.input}` : null,
-        agent.autoMR ? "autoMR" : null,
+        agent.autoPR ? "autoPR" : null,
       ]
         .filter(Boolean)
         .join(", ");
@@ -143,7 +143,7 @@ async function runAgent(
 
     if (agent.input === "pr") {
       const searchLabels = [
-        ...(agent.prLabels ?? []),
+        ...(agent.prFilterLabels ?? []),
         ...(agent.prTriggerLabel ? [agent.prTriggerLabel] : []),
       ];
       const pr = findReviewablePR(config.platform, searchLabels, cwd);
@@ -265,32 +265,32 @@ async function runAgent(
         }
 
         let mrUrl: string | undefined;
-        if (agent.autoMR) {
-          console.log("Creating merge request...");
+        if (agent.autoPR) {
+          console.log("Creating pull request...");
           try {
             const commitSubject = getCommitSubject(worktreePath);
             const commitBody = getCommitBody(worktreePath);
-            const mrBody = commitBody || `Automated by vteam (${agent.name}).${task ? `\n\nTask: ${task.frontmatter.title}` : ""}`;
+            const prBody = commitBody || `Automated by vteam (${agent.name}).${task ? `\n\nTask: ${task.frontmatter.title}` : ""}`;
             const summary = task?.frontmatter.title || commitSubject.replace(/^vteam:\s*/i, "") || "";
-            const mrTitle = summary
+            const prTitle = summary
               ? `vteam: ${agent.name}: ${summary}`
               : `vteam: ${agent.name}`;
             mrUrl = createMergeRequest({
               platform: config.platform,
               branch: branchName,
               baseBranch: config.baseBranch,
-              title: mrTitle,
-              body: mrBody,
-              labels: agent.mrLabels,
+              title: prTitle,
+              body: prBody,
+              labels: agent.prCreateLabels,
               cwd,
             });
-            console.log(`MR created: ${mrUrl}`);
+            console.log(`PR created: ${mrUrl}`);
           } catch (mrErr) {
             console.error(
-              "MR creation failed:",
+              "PR creation failed:",
               mrErr instanceof Error ? mrErr.message : mrErr,
             );
-            console.log("Branch was pushed. Create the MR manually.");
+            console.log("Branch was pushed. Create the PR manually.");
           }
         }
 
@@ -301,7 +301,7 @@ async function runAgent(
             status: "done",
             completed: new Date().toISOString(),
             branch: branchName,
-            ...(mrUrl ? { "mr-url": mrUrl } : {}),
+            ...(mrUrl ? { "pr-url": mrUrl } : {}),
           });
           console.log("Task completed.");
         }

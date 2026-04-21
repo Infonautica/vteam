@@ -36,8 +36,8 @@ describe("parse", () => {
   });
 
   it("parses boolean false", () => {
-    const { data } = parse("---\nautoMR: false\n---\n");
-    expect(data.autoMR).toBe(false);
+    const { data } = parse("---\nautoPR: false\n---\n");
+    expect(data.autoPR).toBe(false);
   });
 
   it("parses integers", () => {
@@ -273,8 +273,8 @@ describe("roundtrip", () => {
       model: "sonnet",
       worktree: true,
       input: "task",
-      autoMR: true,
-      mrLabels: ["vteam", "automated"],
+      autoPR: true,
+      prCreateLabels: ["vteam", "automated"],
       scanPaths: ["src/"],
       excludePaths: ["node_modules/", "dist/"],
     };

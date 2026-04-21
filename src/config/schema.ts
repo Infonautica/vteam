@@ -27,10 +27,10 @@ export const agentFrontmatterSchema = z
     excludePaths: z.array(z.string()).optional(),
     worktree: z.boolean().optional(),
     input: z.enum(["task", "pr"]).optional(),
-    prLabels: z.array(z.string()).optional(),
+    prFilterLabels: z.array(z.string()).optional(),
     prTriggerLabel: z.string().optional(),
-    autoMR: z.boolean().optional(),
-    mrLabels: z.array(z.string()).optional(),
+    autoPR: z.boolean().optional(),
+    prCreateLabels: z.array(z.string()).optional(),
     allowedTools: z.array(z.string()).optional(),
     disallowedTools: z.array(z.string()).optional(),
   })

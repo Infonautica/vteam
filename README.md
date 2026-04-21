@@ -127,7 +127,7 @@ Claude uses its own file tools (Read, Write, Edit) to create findings. The orche
 ### `vteam run review-responder`
 
 1. Acquires an advisory lock (`vteam/.locks/review-responder.lock`)
-2. Discovers open PRs that have both the `prLabels` (e.g. `vteam`) and the `prTriggerLabel` (e.g. `vteam:changes-requested`) applied
+2. Discovers open PRs that have both the `prFilterLabels` (e.g. `vteam`) and the `prTriggerLabel` (e.g. `vteam:changes-requested`) applied
 3. Checks out the PR branch into an isolated git worktree
 4. Builds a prompt containing all unresolved review comments from the PR
 5. Spawns `claude -p` in the worktree — Claude addresses the feedback, commits the changes, and replies to each comment thread
@@ -181,8 +181,8 @@ Agent behavior is configured via YAML frontmatter in each agent's `AGENT.md`. Th
 model: sonnet
 worktree: true
 input: task
-autoMR: true
-mrLabels: [vteam, automated]
+autoPR: true
+prCreateLabels: [vteam, automated]
 scanPaths: [src/]
 excludePaths: [node_modules/, dist/]
 ---
@@ -193,10 +193,10 @@ excludePaths: [node_modules/, dist/]
 | `model`           | `"sonnet"` | Claude model (`"sonnet"`, `"opus"`, `"haiku"`)                                                                   |
 | `worktree`        | `false`    | Run in an isolated git worktree; push branch on commit                                                           |
 | `input`           | —          | `"task"` to pick from `todo/` queue; `"pr"` to respond to PR review comments (requires `worktree: true`)         |
-| `prLabels`        | —          | Labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)                                                |
+| `prFilterLabels`  | —          | Labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)                                                |
 | `prTriggerLabel`  | —          | Transient label signalling "this PR needs work" (e.g. `vteam:changes-requested`); removed after the agent pushes |
-| `autoMR`          | `false`    | Create a pull/merge request after pushing                                                                        |
-| `mrLabels`        | —          | Labels applied to created MRs (auto-created if they don't exist)                                                 |
+| `autoPR`          | `false`    | Create a pull request after pushing                                                                               |
+| `prCreateLabels`  | —          | Labels applied to created PRs (auto-created if they don't exist)                                                  |
 | `scanPaths`       | —          | Directories to review (empty = entire repo)                                                                      |
 | `excludePaths`    | —          | Directories to skip                                                                                              |
 | `allowedTools`    | —          | Claude Code tools the agent may use (same syntax as `--allowedTools` CLI flag, e.g. `["Read", "Bash(git *)"]`)   |
@@ -249,7 +249,7 @@ When a task is completed, the orchestrator adds to its frontmatter:
 ```yaml
 completed: 2026-04-19T10:15:00Z
 branch: vteam/missing-null-check-auth
-mr-url: https://github.com/org/repo/pull/42
+pr-url: https://github.com/org/repo/pull/42
 ```
 
 ### Severity levels
@@ -317,7 +317,7 @@ vteam uses advisory file locking via atomic `mkdir` (POSIX guarantees this is at
 - Requires `gh` (GitHub) or `glab` (GitLab) CLI installed and authenticated.
 - If the CLI is missing, the branch is still pushed — you just need to create the MR manually.
 - Labels are auto-created in the repository if they don't already exist.
-- Set `autoMR: false` in the agent's AGENT.md frontmatter to skip MR creation entirely.
+- Set `autoPR: false` in the agent's AGENT.md frontmatter to skip PR creation entirely.
 
 ### General
 

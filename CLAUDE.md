@@ -7,13 +7,13 @@ An npm package (`vteam`) that orchestrates AI agents powered by `claude -p` (Cla
 The end user's workflow:
 1. Define agent prompts in `AGENT.md` files
 2. Run code-reviewer — it scans the codebase and writes findings straight to todo
-3. Run refactorer (on a cron) — it picks up a task, implements it in a worktree, creates a branch + MR, moves the task to done
+3. Run refactorer (on a cron) — it picks up a task, implements it in a worktree, creates a branch + PR, moves the task to done
 
 ## Architecture
 
 **Core principle: the orchestrator owns all state, Claude owns all intelligence.**
 
-The TypeScript orchestrator handles state transitions — creating worktrees, moving task files, creating MRs. Claude (`-p` mode) handles reasoning — reading code, finding issues, implementing fixes. If Claude crashes mid-run, no state is corrupted because the orchestrator applies changes atomically after Claude finishes.
+The TypeScript orchestrator handles state transitions — creating worktrees, moving task files, creating PRs. Claude (`-p` mode) handles reasoning — reading code, finding issues, implementing fixes. If Claude crashes mid-run, no state is corrupted because the orchestrator applies changes atomically after Claude finishes.
 
 ### How agents run
 
@@ -34,9 +34,9 @@ Each `claude -p` call is stateless. Memory is external:
 
 ### Worktrees
 
-Agents with `worktree: true` get an isolated git worktree (`git worktree add`). After Claude commits changes in the worktree, the orchestrator pushes the branch, optionally creates an MR (if `autoMR: true`), and cleans up the worktree.
+Agents with `worktree: true` get an isolated git worktree (`git worktree add`). After Claude commits changes in the worktree, the orchestrator pushes the branch, optionally creates a PR (if `autoPR: true`), and cleans up the worktree.
 
-Agents with `input: "pr"` use `checkoutWorktree` to check out an existing PR branch (via `git fetch` + `git worktree add` from the remote tracking branch). After Claude commits, the orchestrator pushes to the same branch, posts a summary comment on the PR, and removes the `prTriggerLabel`. Discovery is label-based: the orchestrator searches for open PRs matching all `prLabels` AND the `prTriggerLabel`. The user adds the trigger label when they want changes; the orchestrator removes it after the agent pushes. This avoids GitHub's limitation where PR authors cannot submit "Request changes" reviews on their own PRs.
+Agents with `input: "pr"` use `checkoutWorktree` to check out an existing PR branch (via `git fetch` + `git worktree add` from the remote tracking branch). After Claude commits, the orchestrator pushes to the same branch, posts a summary comment on the PR, and removes the `prTriggerLabel`. Discovery is label-based: the orchestrator searches for open PRs matching all `prFilterLabels` AND the `prTriggerLabel`. The user adds the trigger label when they want changes; the orchestrator removes it after the agent pushes. This avoids GitHub's limitation where PR authors cannot submit "Request changes" reviews on their own PRs.
 
 ### Agent configuration
 
@@ -48,8 +48,8 @@ model: sonnet
 cron: "0 */6 * * *"
 worktree: true
 input: task
-autoMR: true
-mrLabels: [vteam, automated]
+autoPR: true
+prCreateLabels: [vteam, automated]
 scanPaths: [src/]
 excludePaths: [node_modules/, dist/]
 ---
@@ -57,13 +57,13 @@ excludePaths: [node_modules/, dist/]
 
 - `worktree` (default: `false`) — run in an isolated git worktree, push branch on commit
 - `input` (optional, `"task"` or `"pr"`) — `"task"`: pick a task from `todo/` queue, manage task lifecycle; `"pr"`: pick a PR with pending review feedback, check out its branch (requires `worktree: true`)
-- `prLabels` — labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)
+- `prFilterLabels` — labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)
 - `prTriggerLabel` — transient label that signals "this PR needs work" (e.g. `vteam:changes-requested`); removed by the orchestrator after the agent pushes
-- `autoMR` (default: `false`) — create a merge request after pushing
+- `autoPR` (default: `false`) — create a pull request after pushing
 - `cron` — cron expression (5 fields: minute hour day month weekday) for scheduling via `vteam loop start`
 - `scanPaths` / `excludePaths` — scope injected into the user prompt
 - `model` — Claude model override
-- `mrLabels` — labels applied to created MRs
+- `prCreateLabels` — labels applied to created PRs
 - `allowedTools` — Claude Code tools the agent may use (same syntax as the `--allowedTools` CLI flag, e.g. `["Read", "Bash(git *)"]`)
 - `disallowedTools` — Claude Code tools the agent may NOT use (same syntax as `--disallowedTools`)
 
@@ -152,7 +152,7 @@ All three must pass before any commit or PR:
 - Task frontmatter uses YAML via `gray-matter`.
 - Locking uses atomic `mkdir` with stale detection (30 min timeout).
 - Task files are local-only and gitignored (`vteam/tasks/`). The real shared artifacts are PRs.
-- Agents without `worktree` (e.g. code-reviewer) write files directly using Claude's tools. Agents with `worktree` + `input: "task"` (e.g. refactorer) commit changes; the orchestrator handles pushing, MR creation, and moving task files. Agents with `worktree` + `input: "pr"` (e.g. review-responder) check out existing PR branches, commit changes, push, and post a comment on the PR.
+- Agents without `worktree` (e.g. code-reviewer) write files directly using Claude's tools. Agents with `worktree` + `input: "task"` (e.g. refactorer) commit changes; the orchestrator handles pushing, PR creation, and moving task files. Agents with `worktree` + `input: "pr"` (e.g. review-responder) check out existing PR branches, commit changes, push, and post a comment on the PR.
 
 ## Keeping CLAUDE.md and README.md current
 
