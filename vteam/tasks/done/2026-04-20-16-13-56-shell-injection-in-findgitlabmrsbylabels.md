@@ -1,13 +1,14 @@
 ---
 title: Shell injection in findGitLabMRsByLabels via unescaped label values
-created: 2026-04-20T16:13:56Z
-status: todo
+created: "2026-04-20T16:13:56Z"
+status: done
 severity: high
 found-by: code-reviewer
-files:
-  - src/integrations/pull-request.ts:192
+files: ["src/integrations/pull-request.ts:192"]
+completed: "2026-04-21T09:39:30.292Z"
+branch: vteam/2026-04-20-16-13-56-shell-injection-in-findgitlabmrsbylabels
+mr-url: "https://github.com/Infonautica/vteam/pull/22"
 ---
-
 ## Description
 
 `findGitLabMRsByLabels` joins the `labels` array and interpolates it directly into the `glab api` URL string without escaping:
