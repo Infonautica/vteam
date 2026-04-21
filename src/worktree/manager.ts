@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { slugify } from "../slugify.js";
@@ -18,13 +18,14 @@ export function createWorktree(
   const worktreePath = resolve(repoRoot, worktreeDir, branch);
 
   try {
-    execSync(`git branch -D "${branch}"`, { cwd: repoRoot, stdio: "pipe" });
+    execFileSync("git", ["branch", "-D", branch], { cwd: repoRoot, stdio: "pipe" });
   } catch {
     // Branch doesn't exist — expected path
   }
 
-  execSync(
-    `git worktree add -b "${branch}" "${worktreePath}" "${baseBranch}"`,
+  execFileSync(
+    "git",
+    ["worktree", "add", "-b", branch, worktreePath, baseBranch],
     { cwd: repoRoot, stdio: "pipe" },
   );
 
@@ -38,13 +39,13 @@ export function checkoutWorktree(
 ): WorktreeSession {
   const worktreePath = resolve(repoRoot, worktreeDir, remoteBranch);
 
-  execSync(`git fetch origin "${remoteBranch}"`, {
+  execFileSync("git", ["fetch", "origin", remoteBranch], {
     cwd: repoRoot,
     stdio: "pipe",
   });
 
   try {
-    execSync(`git branch -D "${remoteBranch}"`, {
+    execFileSync("git", ["branch", "-D", remoteBranch], {
       cwd: repoRoot,
       stdio: "pipe",
     });
@@ -52,8 +53,9 @@ export function checkoutWorktree(
     // Branch doesn't exist locally — expected path
   }
 
-  execSync(
-    `git worktree add -b "${remoteBranch}" "${worktreePath}" "origin/${remoteBranch}"`,
+  execFileSync(
+    "git",
+    ["worktree", "add", "-b", remoteBranch, worktreePath, `origin/${remoteBranch}`],
     { cwd: repoRoot, stdio: "pipe" },
   );
 
@@ -65,7 +67,7 @@ export function removeWorktree(
   worktreePath: string,
 ): void {
   try {
-    execSync(`git worktree remove "${worktreePath}" --force`, {
+    execFileSync("git", ["worktree", "remove", worktreePath, "--force"], {
       cwd: repoRoot,
       stdio: "pipe",
     });
@@ -120,7 +122,7 @@ export function pushBranch(
   worktreePath: string,
   branch: string,
 ): void {
-  execSync(`git push --force origin "${branch}"`, {
+  execFileSync("git", ["push", "--force", "origin", branch], {
     cwd: worktreePath,
     stdio: "pipe",
   });
