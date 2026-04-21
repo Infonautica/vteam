@@ -1,6 +1,6 @@
 ---
 model: sonnet
-cron: "*/30 * * * *"
+cron: "*/5 * * * *"
 worktree: true
 input: task
 autoMR: true
