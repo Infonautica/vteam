@@ -1,5 +1,6 @@
 ---
 model: sonnet
+cron: "*/30 * * * *"
 worktree: true
 input: task
 autoMR: true
@@ -46,6 +47,7 @@ vteam: <task-title>
 ```
 
 The body should be a concise PR-ready description of the change:
+
 - What was the problem (from the task description)
 - What you changed and why
 - Any trade-offs or decisions worth noting

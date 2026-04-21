@@ -1,6 +1,5 @@
 ---
 model: sonnet
-cron: "*/10 * * * *"
 worktree: true
 autoMR: true
 scanPaths:

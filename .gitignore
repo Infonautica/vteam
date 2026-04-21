@@ -4,3 +4,4 @@ dist/
 .vteam-worktrees/
 vteam/.runs/
 vteam/.locks/
+vteam/.logs/

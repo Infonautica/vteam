@@ -1,15 +1,14 @@
 ---
 title: Command injection via PR branch name in checkoutWorktree
-created: 2026-04-21T08:11:57Z
-status: todo
+created: "2026-04-21T08:11:57Z"
+status: done
 severity: critical
 found-by: code-reviewer
-files:
-  - src/worktree/manager.ts:41
-  - src/worktree/manager.ts:47
-  - src/worktree/manager.ts:55
+files: ["src/worktree/manager.ts:41", "src/worktree/manager.ts:47", "src/worktree/manager.ts:55"]
+completed: "2026-04-21T09:01:23.271Z"
+branch: vteam/2026-04-21-08-11-57-command-injection-via-pr-branch-name-in-checkout-worktree
+mr-url: "https://github.com/Infonautica/vteam/pull/20"
 ---
-
 ## Description
 
 `checkoutWorktree` in `src/worktree/manager.ts` interpolates `remoteBranch` directly into shell command strings passed to `execSync`. The `remoteBranch` value originates from `pr.headRefName` (GitHub) or `mr.source_branch` (GitLab) — both fields are fully controlled by the PR author, any external user who can open a pull request.
