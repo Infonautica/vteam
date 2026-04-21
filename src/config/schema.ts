@@ -1,10 +1,16 @@
 import { z } from "zod";
-
-const CRON_FIELD = /^(\*|\d+(-\d+)?)(\/\d+)?((,(\d+(-\d+)?)(\/\d+)?)*)$/;
+import { Cron } from "croner";
 
 export function isValidCronExpression(expr: string): boolean {
   const fields = expr.trim().split(/\s+/);
-  return fields.length === 5 && fields.every((f) => CRON_FIELD.test(f));
+  if (fields.length !== 5) return false;
+  try {
+    const job = new Cron(expr);
+    job.stop();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export const agentFrontmatterSchema = z

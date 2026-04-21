@@ -5,11 +5,7 @@ import { initCommand } from "./commands/init.js";
 import { runCommand } from "./commands/run.js";
 import { statusCommand } from "./commands/status.js";
 import { cleanCommand } from "./commands/clean.js";
-import {
-  cronScheduleCommand,
-  cronClearCommand,
-  cronStatusCommand,
-} from "./commands/cron.js";
+import { loopStartCommand, loopStatusCommand } from "./commands/loop.js";
 
 const program = new Command();
 
@@ -39,25 +35,18 @@ program
   .description("Remove orphaned worktrees, break stale locks")
   .action(cleanCommand);
 
-const cronCmd = program
-  .command("cron")
-  .description("Manage scheduled agent runs via crontab");
+const loopCmd = program
+  .command("loop")
+  .description("Run agents on their cron schedules in a long-lived process");
 
-cronCmd
-  .command("schedule")
-  .description(
-    "Install crontab entries for agents with cron patterns in frontmatter",
-  )
-  .action(cronScheduleCommand);
+loopCmd
+  .command("start")
+  .description("Start the scheduler (runs in foreground)")
+  .action(loopStartCommand);
 
-cronCmd
-  .command("clear")
-  .description("Remove all vteam crontab entries for this project")
-  .action(cronClearCommand);
-
-cronCmd
+loopCmd
   .command("status")
-  .description("Show currently scheduled agents")
-  .action(cronStatusCommand);
+  .description("Show agents with cron schedules and next fire times")
+  .action(loopStatusCommand);
 
 program.parse();
