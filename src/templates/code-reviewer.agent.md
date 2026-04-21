@@ -71,9 +71,9 @@ After creating task files, create a single commit:
 - Commit message format:
 
 ```
-vteam: <short summary of finding>
+vteam: <title of the finding>
 
 <body>
 ```
 
-The subject should summarize the finding concisely (e.g. `vteam: Remove unused helper function`). The body should briefly list the findings (one line per finding with severity and title). This commit message body becomes the pull request description, so write it for a human reviewer who will triage the findings.
+The subject line must match the task's `title` frontmatter field, prefixed with `vteam:`. The body should describe the finding's impact and suggested fix. This commit message becomes the pull request title and description, so write it for a human reviewer who will triage the finding.
