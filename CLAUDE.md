@@ -36,7 +36,7 @@ Each `claude -p` call is stateless. Memory is external:
 
 Agents with `worktree: true` get an isolated git worktree (`git worktree add`). After Claude commits changes in the worktree, the orchestrator pushes the branch, optionally creates an MR (if `autoMR: true`), and cleans up the worktree.
 
-Agents with `prInput: true` use `checkoutWorktree` to check out an existing PR branch (via `git fetch` + `git worktree add` from the remote tracking branch). After Claude commits, the orchestrator pushes to the same branch, posts a summary comment on the PR, and removes the `prTriggerLabel`. Discovery is label-based: the orchestrator searches for open PRs matching all `prLabels` AND the `prTriggerLabel`. The user adds the trigger label when they want changes; the orchestrator removes it after the agent pushes. This avoids GitHub's limitation where PR authors cannot submit "Request changes" reviews on their own PRs.
+Agents with `input: "pr"` use `checkoutWorktree` to check out an existing PR branch (via `git fetch` + `git worktree add` from the remote tracking branch). After Claude commits, the orchestrator pushes to the same branch, posts a summary comment on the PR, and removes the `prTriggerLabel`. Discovery is label-based: the orchestrator searches for open PRs matching all `prLabels` AND the `prTriggerLabel`. The user adds the trigger label when they want changes; the orchestrator removes it after the agent pushes. This avoids GitHub's limitation where PR authors cannot submit "Request changes" reviews on their own PRs.
 
 ### Agent configuration
 
@@ -47,7 +47,7 @@ Agents are defined at `vteam/agents/<name>/AGENT.md`. Each AGENT.md uses YAML fr
 model: sonnet
 cron: "0 */6 * * *"
 worktree: true
-taskInput: true
+input: task
 autoMR: true
 mrLabels: [vteam, automated]
 scanPaths: [src/]
@@ -56,11 +56,10 @@ excludePaths: [node_modules/, dist/]
 ```
 
 - `worktree` (default: `false`) — run in an isolated git worktree, push branch on commit
-- `taskInput` (default: `false`) — pick a task from `todo/` queue, manage task lifecycle
-- `prInput` (default: `false`) — pick a PR with pending review feedback, check out its branch (requires `worktree: true`, mutually exclusive with `taskInput`)
-- `prLabels` — labels used to filter PRs when `prInput: true` (e.g. `[vteam]`)
+- `input` (optional, `"task"` or `"pr"`) — `"task"`: pick a task from `todo/` queue, manage task lifecycle; `"pr"`: pick a PR with pending review feedback, check out its branch (requires `worktree: true`)
+- `prLabels` — labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)
 - `prTriggerLabel` — transient label that signals "this PR needs work" (e.g. `vteam:changes-requested`); removed by the orchestrator after the agent pushes
-- `autoMR` (default: `false`) — create a merge request after pushing (requires `worktree: true`)
+- `autoMR` (default: `false`) — create a merge request after pushing
 - `cron` — cron expression (5 fields: minute hour day month weekday) for scheduling via `vteam loop start`
 - `scanPaths` / `excludePaths` — scope injected into the user prompt
 - `model` — Claude model override
@@ -150,7 +149,7 @@ All three must pass before any commit or PR:
 - Task filenames: `YYYY-MM-DD-HH-mm-ss-<slugified-title>.md`
 - Task frontmatter uses YAML via `gray-matter`.
 - Locking uses atomic `mkdir` with stale detection (30 min timeout).
-- Agents without `worktree` (e.g. code-reviewer) write files directly using Claude's tools. Agents with `worktree` + `taskInput` (e.g. refactorer) commit changes; the orchestrator handles pushing, MR creation, and moving task files. Agents with `worktree` + `prInput` (e.g. review-responder) check out existing PR branches, commit changes, push, and post a comment on the PR.
+- Agents without `worktree` (e.g. code-reviewer) write files directly using Claude's tools. Agents with `worktree` + `input: "task"` (e.g. refactorer) commit changes; the orchestrator handles pushing, MR creation, and moving task files. Agents with `worktree` + `input: "pr"` (e.g. review-responder) check out existing PR branches, commit changes, push, and post a comment on the PR.
 
 ## Keeping CLAUDE.md and README.md current
 

@@ -68,8 +68,7 @@ function listAgents(cwd: string): void {
       const agent = resolveAgentConfig(name, cwd);
       const flags = [
         agent.worktree ? "worktree" : null,
-        agent.taskInput ? "taskInput" : null,
-        agent.prInput ? "prInput" : null,
+        agent.input ? `input: ${agent.input}` : null,
         agent.autoMR ? "autoMR" : null,
       ]
         .filter(Boolean)
@@ -117,7 +116,7 @@ async function runAgent(
       agent.name,
     );
 
-    if (agent.taskInput) {
+    if (agent.input === "task") {
       const taskIndex = buildTaskIndex(tasksDir);
       const todoTasks = taskIndex.byStatus.get("todo") ?? [];
       const eligible = todoTasks
@@ -142,7 +141,7 @@ async function runAgent(
       );
     }
 
-    if (agent.prInput) {
+    if (agent.input === "pr") {
       const searchLabels = [
         ...(agent.prLabels ?? []),
         ...(agent.prTriggerLabel ? [agent.prTriggerLabel] : []),

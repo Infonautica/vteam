@@ -1,7 +1,7 @@
 ---
 model: sonnet
 worktree: true
-taskInput: true
+input: task
 autoMR: true
 mrLabels:
   - vteam
