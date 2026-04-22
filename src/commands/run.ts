@@ -408,7 +408,7 @@ async function runOnFinishHook(
 
 function hasNewCommit(worktreePath: string, baseBranch: string): boolean {
   try {
-    const log = execSync(`git log ${baseBranch}..HEAD --oneline`, {
+    const log = execSync(`git log "${baseBranch}"..HEAD --oneline`, {
       cwd: worktreePath,
       encoding: "utf-8",
     });
