@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { parse } from "../frontmatter.js";
 import { buildTaskIndex } from "../memory/task-index.js";
-import type { AgentConfig, TaskFile, PRReviewContext, OnFinishConfig, RunOutcome } from "../types.js";
+import type { AgentConfig, TaskFile, PRReviewContext, OnFinishConfig, MemoryConfig, RunOutcome } from "../types.js";
 
 interface PromptParts {
   systemPrompt: string;
@@ -14,6 +14,7 @@ export function buildPrompt(
   task?: TaskFile,
   review?: PRReviewContext,
   focus?: string,
+  memoryContent?: string,
 ): PromptParts {
   const raw = readFileSync(agent.agentMdPath, "utf-8");
   const { content } = parse(raw);
@@ -25,6 +26,12 @@ export function buildPrompt(
   if (focus) {
     sections.push(
       `## Priority Focus\n\nThe user wants you to prioritize the following context above all other considerations:\n\n${focus}`,
+    );
+  }
+
+  if (memoryContent) {
+    sections.push(
+      `## Agent Memory\n\nThe following is your accumulated memory from previous runs. Use it to inform your work and avoid repeating past efforts.\n\n${memoryContent}`,
     );
   }
 
@@ -118,7 +125,37 @@ export function buildOnFinishPrompt(
   return { systemPrompt, userPrompt: sections.join("\n\n") };
 }
 
+export function buildMemoryCurationPrompt(
+  memory: MemoryConfig,
+  currentMemory: string,
+  memoryUpdate: string,
+): PromptParts {
+  const raw = readFileSync(memory.memoryMdPath, "utf-8");
+  const { content } = parse(raw);
+  const systemPrompt = content.trim();
+
+  const sections: string[] = [];
+
+  if (currentMemory) {
+    sections.push(`## Current Memory\n\n${currentMemory}`);
+  } else {
+    sections.push(`## Current Memory\n\n(empty — this is the first memory entry)`);
+  }
+
+  sections.push(`## New Update\n\n${memoryUpdate}`);
+
+  sections.push(
+    `## Instructions\n\nReturn the complete replacement memory content. Merge the new update into the current memory according to your curation rules. Output ONLY the final memory content as plain text — no JSON, no fences.`,
+  );
+
+  return { systemPrompt, userPrompt: sections.join("\n\n") };
+}
+
 function buildOutputInstruction(agent: AgentConfig): string {
+  const memoryNote = agent.memory
+    ? `\n  "memoryUpdate": "optional: brief notes about this run to remember for future runs (patterns noticed, decisions made, areas covered)"`
+    : "";
+
   if (agent.worktree) {
     return `## Output Format
 
@@ -132,7 +169,7 @@ After making your changes, output a JSON object as the LAST thing you produce. D
     "subject": "vteam: <short subject>",
     "body": "PR-ready description of the change"
   },
-  "blockerReason": "only if status is blocked or failed"
+  "blockerReason": "only if status is blocked or failed"${memoryNote ? `,${memoryNote}` : ""}
 }`;
   }
 
@@ -151,7 +188,7 @@ Return your findings as a JSON object. Do NOT write any task files — the orche
     }
   ],
   "summary": "one-paragraph summary of what you scanned",
-  "areasScanned": ["path1/", "path2/"]
+  "areasScanned": ["path1/", "path2/"]${memoryNote ? `,${memoryNote}` : ""}
 }`;
 }
 

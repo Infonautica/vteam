@@ -31,6 +31,13 @@ export interface OnFinishConfig {
   disallowedTools?: string[];
 }
 
+export interface MemoryConfig {
+  memoryMdPath: string;
+  model?: string;
+  allowedTools?: string[];
+  disallowedTools?: string[];
+}
+
 export interface AgentConfig {
   name: string;
   agentMdPath: string;
@@ -47,6 +54,7 @@ export interface AgentConfig {
   allowedTools?: string[];
   disallowedTools?: string[];
   onFinish?: OnFinishConfig;
+  memory?: MemoryConfig;
 }
 
 export interface RunOutcome {
@@ -105,6 +113,7 @@ export interface ReviewerOutput {
   findings: ReviewerFinding[];
   summary: string;
   areasScanned: string[];
+  memoryUpdate?: string;
 }
 
 export interface CommitMessage {
@@ -118,6 +127,7 @@ export interface CommitterOutput {
   filesChanged: string[];
   commitMessage: CommitMessage;
   blockerReason?: string;
+  memoryUpdate?: string;
 }
 
 export interface RunState {

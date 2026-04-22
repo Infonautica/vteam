@@ -1,11 +1,13 @@
 import {
+  existsSync,
   mkdirSync,
+  readFileSync,
   writeFileSync,
 } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { acquireLock, type FileLock } from "../memory/lock.js";
-import { buildPrompt, buildOnFinishPrompt } from "../orchestrator/prompt-builder.js";
+import { buildPrompt, buildOnFinishPrompt, buildMemoryCurationPrompt } from "../orchestrator/prompt-builder.js";
 import { runClaudeAgent } from "../orchestrator/agent-runner.js";
 import { parseReviewerOutput, parseCommitterOutput } from "../orchestrator/output-schema.js";
 import { buildTaskIndex } from "../memory/task-index.js";
@@ -130,6 +132,7 @@ async function runAgent(
   let task: TaskFile | undefined;
   let reviewContext: PRReviewContext | undefined;
   let prUrl: string | undefined;
+  let memoryUpdate: string | undefined;
   let runOutcome: RunOutcome | undefined;
 
   try {
@@ -227,6 +230,12 @@ async function runAgent(
       console.log(`Worktree: ${worktreePath} (branch: ${branchName})`);
     }
 
+    let memoryContent: string | undefined;
+    const memoryFilePath = resolve(cwd, "vteam", ".memory", agent.name, "store.md");
+    if (agent.memory && existsSync(memoryFilePath)) {
+      memoryContent = readFileSync(memoryFilePath, "utf-8").trim() || undefined;
+    }
+
     console.log("Building prompt...");
     const { systemPrompt, userPrompt } = buildPrompt(
       agent,
@@ -234,6 +243,7 @@ async function runAgent(
       task,
       reviewContext,
       focus,
+      memoryContent,
     );
 
     console.log(`Running ${agent.name} agent...`);
@@ -262,6 +272,7 @@ async function runAgent(
 
     if (agent.worktree && worktreePath && branchName) {
       const output = parseCommitterOutput(result.resultText);
+      memoryUpdate = output.memoryUpdate;
       runState.claudeOutput = output;
       runState.commitMessage = output.commitMessage;
 
@@ -360,6 +371,7 @@ async function runAgent(
       }
     } else if (!agent.worktree) {
       const output = parseReviewerOutput(result.resultText);
+      memoryUpdate = output.memoryUpdate;
       runState.claudeOutput = output;
 
       if (output.findings.length > 0) {
@@ -424,6 +436,7 @@ async function runAgent(
   } finally {
     if (runOutcome) {
       await runOnFinishHook(agent, runOutcome, cwd);
+      await runMemoryCuration(agent, memoryUpdate, cwd);
     }
     if (worktreePath) {
       console.log("Cleaning up worktree...");
@@ -463,6 +476,54 @@ async function runOnFinishHook(
     console.error(
       "On-finish hook failed:",
       hookErr instanceof Error ? hookErr.message : hookErr,
+    );
+  }
+}
+
+async function runMemoryCuration(
+  agent: AgentConfig,
+  memoryUpdate: string | undefined,
+  cwd: string,
+): Promise<void> {
+  if (!agent.memory || !memoryUpdate) return;
+
+  console.log(`\nRunning memory curation for ${agent.name}...`);
+
+  const memoryDir = resolve(cwd, "vteam", ".memory", agent.name);
+  const memoryFilePath = resolve(memoryDir, "store.md");
+
+  let currentMemory = "";
+  if (existsSync(memoryFilePath)) {
+    currentMemory = readFileSync(memoryFilePath, "utf-8");
+  }
+
+  const { systemPrompt, userPrompt } = buildMemoryCurationPrompt(
+    agent.memory,
+    currentMemory,
+    memoryUpdate,
+  );
+
+  try {
+    const result = await runClaudeAgent({
+      systemPrompt,
+      userPrompt,
+      cwd,
+      model: agent.memory.model,
+      allowedTools: agent.memory.allowedTools,
+      disallowedTools: agent.memory.disallowedTools,
+    });
+
+    if (result.exitCode === 0 && result.resultText) {
+      mkdirSync(memoryDir, { recursive: true });
+      writeFileSync(memoryFilePath, result.resultText.trim() + "\n", "utf-8");
+      console.log("Memory updated.");
+    } else {
+      console.error("Memory curation produced no output or failed.");
+    }
+  } catch (err) {
+    console.error(
+      "Memory curation failed:",
+      err instanceof Error ? err.message : err,
     );
   }
 }

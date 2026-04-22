@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { parse } from "../frontmatter.js";
-import { agentFrontmatterSchema, onFinishFrontmatterSchema } from "./schema.js";
-import type { AgentConfig, OnFinishConfig } from "../types.js";
+import { agentFrontmatterSchema, onFinishFrontmatterSchema, memoryFrontmatterSchema } from "./schema.js";
+import type { AgentConfig, OnFinishConfig, MemoryConfig } from "../types.js";
 
 export function resolveAgentConfig(
   name: string,
@@ -40,11 +40,27 @@ export function resolveAgentConfig(
     onFinish = { onFinishMdPath: onFinishPath, ...onFinishResult.data };
   }
 
+  let memory: MemoryConfig | undefined;
+  const memoryPath = resolve(agentDir, "MEMORY.md");
+  if (existsSync(memoryPath)) {
+    const rawMemory = readFileSync(memoryPath, "utf-8");
+    const { data: memoryData } = parse(rawMemory);
+    const memoryResult = memoryFrontmatterSchema.safeParse(memoryData);
+    if (!memoryResult.success) {
+      const issues = memoryResult.error.issues
+        .map((i) => `  - ${i.path.join(".")}: ${i.message}`)
+        .join("\n");
+      throw new Error(`Invalid frontmatter in ${name}/MEMORY.md:\n${issues}`);
+    }
+    memory = { memoryMdPath: memoryPath, ...memoryResult.data };
+  }
+
   return {
     name,
     agentMdPath,
     ...result.data,
     ...(onFinish ? { onFinish } : {}),
+    ...(memory ? { memory } : {}),
   };
 }
 

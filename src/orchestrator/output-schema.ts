@@ -15,6 +15,7 @@ export const reviewerOutputSchema = z.object({
   findings: z.array(findingSchema),
   summary: z.string(),
   areasScanned: z.array(z.string()),
+  memoryUpdate: z.string().optional(),
 });
 
 const commitMessageSchema = z.object({
@@ -28,6 +29,7 @@ export const committerOutputSchema = z.object({
   filesChanged: z.array(z.string()),
   commitMessage: commitMessageSchema,
   blockerReason: z.string().optional(),
+  memoryUpdate: z.string().optional(),
 });
 
 function stripMarkdownFences(text: string): string {

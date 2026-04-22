@@ -99,13 +99,17 @@ vteam/
 ├── vteam.config.json               # Project-level configuration
 ├── agents/
 │   ├── code-reviewer/
-│   │   └── AGENT.md                # Code reviewer prompt/personality
+│   │   ├── AGENT.md                # Code reviewer prompt/personality
+│   │   └── MEMORY.md               # Memory curation strategy
 │   ├── refactorer/
-│   │   └── AGENT.md                # Refactorer prompt/personality
+│   │   ├── AGENT.md                # Refactorer prompt/personality
+│   │   └── MEMORY.md               # Memory curation strategy
 │   ├── review-responder/
-│   │   └── AGENT.md                # Review responder prompt/personality
+│   │   ├── AGENT.md                # Review responder prompt/personality
+│   │   └── MEMORY.md               # Memory curation strategy
 │   └── test-writer/
-│       └── AGENT.md                # Test writer prompt/personality
+│       ├── AGENT.md                # Test writer prompt/personality
+│       └── MEMORY.md               # Memory curation strategy
 └── tasks/                          # Local only — gitignored
     ├── todo/                       # Findings from code reviewer, ready for implementation
     └── done/                       # Completed tasks
@@ -318,9 +322,36 @@ There is no separate overview file. At prompt-build time, the orchestrator scans
 
 Claude returns findings as structured JSON; the orchestrator creates the actual task files.
 
-### Custom memory
+### Per-agent memory (MEMORY.md)
 
-The built-in task-based memory is intentionally minimal — vteam is not opinionated about how you give agents context. You can build your own memory files or mechanisms and point agents to them in their AGENT.md prompts. For example, you might maintain a markdown file with architectural decisions, a list of known false positives, or a summary of past reviews — then instruct the agent to read it as part of its workflow. As long as Claude can access the file via its tools, it works.
+Agents can maintain persistent memory across runs. Place a `MEMORY.md` file alongside `AGENT.md` to define a memory curation strategy — natural language rules for how the agent's memory should be maintained.
+
+```yaml
+---
+model: haiku
+---
+
+Keep a running list of areas scanned and key patterns observed.
+Record false positives to avoid repeating them.
+Maximum 30 lines — drop oldest entries first.
+```
+
+**How it works:**
+
+1. Before each run, the orchestrator reads the agent's memory file (`vteam/.memory/<agent-name>/store.md`) and injects it into the prompt
+2. The agent includes a `memoryUpdate` field in its structured JSON output with observations from the current run
+3. After the run, the orchestrator spawns a small curation agent that merges the new update into existing memory according to the MEMORY.md rules
+4. The orchestrator writes the curated result back to the memory file (full replacement)
+
+Memory files are stored in `vteam/.memory/` and are gitignored — they are local workflow state like task files. The curation agent failure is non-fatal and does not affect the agent run's exit status.
+
+| Field             | Default | Description                                    |
+| ----------------- | ------- | ---------------------------------------------- |
+| `model`           | —       | Claude model override for the curation agent   |
+| `allowedTools`    | —       | Tools the curation agent may use               |
+| `disallowedTools` | —       | Tools the curation agent may NOT use           |
+
+Memory is opt-in — agents without a `MEMORY.md` skip it entirely. `vteam init` scaffolds a default MEMORY.md for each built-in agent.
 
 ## Agents
 

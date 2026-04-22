@@ -46,10 +46,16 @@ export async function initCommand(): Promise<void> {
   copyTemplate("refactorer.agent.md", resolve(vteamDir, "agents", "refactorer", "AGENT.md"));
   copyTemplate("review-responder.agent.md", resolve(vteamDir, "agents", "review-responder", "AGENT.md"));
   copyTemplate("test-writer.agent.md", resolve(vteamDir, "agents", "test-writer", "AGENT.md"));
+
+  copyTemplate("code-reviewer.memory.md", resolve(vteamDir, "agents", "code-reviewer", "MEMORY.md"));
+  copyTemplate("refactorer.memory.md", resolve(vteamDir, "agents", "refactorer", "MEMORY.md"));
+  copyTemplate("review-responder.memory.md", resolve(vteamDir, "agents", "review-responder", "MEMORY.md"));
+  copyTemplate("test-writer.memory.md", resolve(vteamDir, "agents", "test-writer", "MEMORY.md"));
+
   copyTemplate("vteam.config.json", resolve(vteamDir, "vteam.config.json"));
 
   const gitignorePath = resolve(cwd, ".gitignore");
-  const entries = [".vteam-worktrees/", "vteam/tasks/", "vteam/.locks/", "vteam/.logs/", "vteam/.runs/"];
+  const entries = [".vteam-worktrees/", "vteam/tasks/", "vteam/.locks/", "vteam/.logs/", "vteam/.runs/", "vteam/.memory/"];
   if (existsSync(gitignorePath)) {
     const content = readFileSync(gitignorePath, "utf-8");
     const missing = entries.filter((e) => !content.includes(e));
@@ -66,6 +72,7 @@ export async function initCommand(): Promise<void> {
   console.log("  Created vteam/agents/refactorer/AGENT.md");
   console.log("  Created vteam/agents/review-responder/AGENT.md");
   console.log("  Created vteam/agents/test-writer/AGENT.md");
+  console.log("  Created MEMORY.md for each agent");
   console.log("  Created vteam/vteam.config.json");
-  console.log("\nDone. Edit the AGENT.md files and vteam.config.json to customize.");
+  console.log("\nDone. Edit the AGENT.md and MEMORY.md files and vteam.config.json to customize.");
 }

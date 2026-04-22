@@ -5,4 +5,5 @@ dist/
 vteam/.runs/
 vteam/.locks/
 vteam/.logs/
+vteam/.memory/
 vteam/tasks/

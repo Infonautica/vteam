@@ -44,6 +44,12 @@ export const onFinishFrontmatterSchema = z.object({
   disallowedTools: z.array(z.string()).optional(),
 });
 
+export const memoryFrontmatterSchema = z.object({
+  model: z.string().optional(),
+  allowedTools: z.array(z.string()).optional(),
+  disallowedTools: z.array(z.string()).optional(),
+});
+
 export const vteamConfigSchema = z.object({
   baseBranch: z.string(),
   platform: z.enum(["github", "gitlab"]),

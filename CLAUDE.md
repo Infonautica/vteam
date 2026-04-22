@@ -29,9 +29,11 @@ The orchestrator assembles a layered prompt: AGENT.md (role) → optional `--foc
 
 Claude's text output (extracted from the `result` field of the JSON envelope) must be valid JSON matching one of two schemas:
 
-**Code-reviewer** (no worktree): `{ findings: [{title, severity, description, suggestedFix?, files}], summary, areasScanned }` — the orchestrator creates task files from each finding.
+**Code-reviewer** (no worktree): `{ findings: [{title, severity, description, suggestedFix?, files}], summary, areasScanned, memoryUpdate? }` — the orchestrator creates task files from each finding.
 
-**Worktree agents** (refactorer, review-responder, test-writer): `{ status, summary, filesChanged, commitMessage: {subject, body}, blockerReason? }` — the orchestrator runs `git add -A` + `git commit` using the provided commit message, then pushes and creates PRs.
+**Worktree agents** (refactorer, review-responder, test-writer): `{ status, summary, filesChanged, commitMessage: {subject, body}, blockerReason?, memoryUpdate? }` — the orchestrator runs `git add -A` + `git commit` using the provided commit message, then pushes and creates PRs.
+
+The optional `memoryUpdate` field is included in the output format instructions only when the agent has a `MEMORY.md` strategy file. Agents without memory configuration never see this field.
 
 The output format instructions are injected into every agent's user prompt by the prompt builder (`buildOutputInstruction`). The orchestrator validates the output via zod schemas in `orchestrator/output-schema.ts`. Markdown fences are stripped before parsing as a fallback.
 
@@ -41,6 +43,7 @@ Each `claude -p` call is stateless. Memory is external:
 
 - **Task files** — individual markdown files with YAML frontmatter in `todo/` or `done/`. Local-only and gitignored — they are workflow state, not source code. The orchestrator scans these directories at prompt-build time and injects a summary of existing task titles, severities, and statuses into every agent's prompt.
 - **Deduplication** — The prompt builder reads all task files via `buildTaskIndex()` and includes them in the "Existing Tasks" section. Claude avoids reporting duplicates. No hashing. No separate overview file — task files are the single source of truth.
+- **Per-agent memory** — agents can optionally have a `MEMORY.md` strategy file at `vteam/agents/<name>/MEMORY.md`. When present, the orchestrator injects the agent's accumulated memory (from `vteam/.memory/<agent-name>/store.md`) into the prompt. After the main run, if the agent returned a `memoryUpdate` in its structured output, the orchestrator spawns a small curation agent. The curation agent receives the MEMORY.md instructions (system prompt), the current memory content, and the new update — it returns the complete replacement memory content. The orchestrator writes the result to `.memory/<agent-name>.memory.md`. Memory files are local-only and gitignored. Curation failure is non-fatal.
 
 ### Worktrees
 
@@ -95,6 +98,23 @@ Post a notification to #eng-prs with the run result.
 ```
 
 Supported frontmatter fields: `model`, `allowedTools`, `disallowedTools`. The markdown body becomes the hook's system prompt. The hook runs in the main project directory (not the worktree) and its failure does not affect the agent run's exit status.
+
+### Per-agent memory
+
+An agent can optionally have a `MEMORY.md` file at `vteam/agents/<name>/MEMORY.md`. This defines the memory curation strategy — how accumulated memory should be maintained across runs.
+
+The MEMORY.md uses YAML frontmatter for its own configuration:
+
+```yaml
+---
+model: haiku
+---
+
+Keep a running list of areas scanned. Record false positives to avoid repeating them.
+Maximum 30 lines — drop oldest entries first.
+```
+
+Supported frontmatter fields: `model`, `allowedTools`, `disallowedTools`. The markdown body becomes the curation agent's system prompt. Memory data is stored in `vteam/.memory/<agent-name>/store.md` (gitignored). The curation agent runs after each agent run and its failure does not affect the agent run's exit status.
 
 ## Project structure
 
