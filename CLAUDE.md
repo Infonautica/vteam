@@ -155,7 +155,7 @@ All three must pass before any commit or PR:
 
 ## v1 scope and constraints
 
-- Ships with three default agents (`code-reviewer`, `refactorer`, `review-responder`). Custom agents supported by creating `vteam/agents/<name>/AGENT.md`.
+- Ships with four default agents (`code-reviewer`, `refactorer`, `review-responder`, `test-writer`). Custom agents supported by creating `vteam/agents/<name>/AGENT.md`.
 - Supports both GitHub (`gh`) and GitLab (`glab`) — configured via `platform` in `vteam.config.json`.
 - No Slack integration yet.
 - No `--max-budget-usd` caps on agent runs.

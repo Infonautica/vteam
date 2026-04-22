@@ -102,8 +102,10 @@ vteam/
 │   │   └── AGENT.md                # Code reviewer prompt/personality
 │   ├── refactorer/
 │   │   └── AGENT.md                # Refactorer prompt/personality
-│   └── review-responder/
-│       └── AGENT.md                # Review responder prompt/personality
+│   ├── review-responder/
+│   │   └── AGENT.md                # Review responder prompt/personality
+│   └── test-writer/
+│       └── AGENT.md                # Test writer prompt/personality
 └── tasks/                          # Local only — gitignored
     ├── todo/                       # Findings from code reviewer, ready for implementation
     └── done/                       # Completed tasks
@@ -310,7 +312,7 @@ The built-in task-based memory is intentionally minimal — vteam is not opinion
 
 ## Agents
 
-vteam ships with three default agents (code-reviewer, refactorer, review-responder). Add custom agents by creating `vteam/agents/<name>/AGENT.md` — no config changes needed.
+vteam ships with four default agents (code-reviewer, refactorer, review-responder, test-writer). Add custom agents by creating `vteam/agents/<name>/AGENT.md` — no config changes needed.
 
 ### Code reviewer
 
@@ -335,6 +337,15 @@ vteam ships with three default agents (code-reviewer, refactorer, review-respond
 - Reads all unresolved review comments and addresses the feedback
 - Commits changes and replies to each comment thread with an explanation
 - Pushes to the PR branch and removes the trigger label
+
+### Test writer
+
+- Scans the codebase for untested or under-tested code
+- Picks one function or feature per run — keeps PRs small and reviewable
+- Studies existing test files to match project conventions (runner, helpers, mocking patterns)
+- Works in an isolated git worktree
+- Runs tests, type-check, and lint before committing
+- Does not modify source code — only adds or updates test files
 
 All agents receive existing task titles in their prompt, giving them full context of past and present work.
 
