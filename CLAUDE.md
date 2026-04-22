@@ -19,24 +19,34 @@ The TypeScript orchestrator handles state transitions — creating worktrees, mo
 
 Each agent is invoked as a `claude -p` subprocess with:
 - `--append-system-prompt-file` — the agent's `AGENT.md` content (via temp file)
-- `--output-format stream-json` + `--verbose` — real-time streaming of tool calls and text
+- `--output-format stream-json` + `--verbose` — real-time streaming of tool calls; the runner accumulates `assistant` text events to extract the final result
 - `--allowedTools` / `--disallowedTools` — per-agent tool permissions from frontmatter (uses the same syntax as native Claude Code CLI flags)
 - `--no-session-persistence` — no session clutter
 
-The orchestrator assembles a layered prompt: AGENT.md (role) → existing task titles (from task file frontmatter) → task content or PR review comments → instructions. The prompt is passed via stdin. Claude uses its own tools (Read, Write, Edit, Bash) to create task files and implement changes directly.
+The orchestrator assembles a layered prompt: AGENT.md (role) → existing task titles (from task file frontmatter) → task content or PR review comments → output format instructions. The prompt is passed via stdin. Claude returns structured JSON as its final output — the orchestrator parses this to create task files, git commits, and PRs.
+
+### Structured output contract
+
+Claude's text output (extracted from the `result` field of the JSON envelope) must be valid JSON matching one of two schemas:
+
+**Code-reviewer** (no worktree): `{ findings: [{title, severity, description, suggestedFix?, files}], summary, areasScanned }` — the orchestrator creates task files from each finding.
+
+**Worktree agents** (refactorer, review-responder, test-writer): `{ status, summary, filesChanged, commitMessage: {subject, body}, blockerReason? }` — the orchestrator runs `git add -A` + `git commit` using the provided commit message, then pushes and creates PRs.
+
+The output format instructions are injected into every agent's user prompt by the prompt builder (`buildOutputInstruction`). The orchestrator validates the output via zod schemas in `orchestrator/output-schema.ts`. Markdown fences are stripped before parsing as a fallback.
 
 ### Memory management
 
 Each `claude -p` call is stateless. Memory is external:
 
 - **Task files** — individual markdown files with YAML frontmatter in `todo/` or `done/`. Local-only and gitignored — they are workflow state, not source code. The orchestrator scans these directories at prompt-build time and injects a summary of existing task titles, severities, and statuses into every agent's prompt.
-- **Deduplication** — The prompt builder reads all task files via `buildTaskIndex()` and includes them in the "Existing Tasks" section. Claude avoids reporting duplicates. The orchestrator also does a normalized title comparison as a safety net. No hashing. No separate overview file — task files are the single source of truth.
+- **Deduplication** — The prompt builder reads all task files via `buildTaskIndex()` and includes them in the "Existing Tasks" section. Claude avoids reporting duplicates. No hashing. No separate overview file — task files are the single source of truth.
 
 ### Worktrees
 
-Agents with `worktree: true` get an isolated git worktree (`git worktree add`). After Claude commits changes in the worktree, the orchestrator pushes the branch, optionally creates a PR (if `autoPR: true`), and cleans up the worktree.
+Agents with `worktree: true` get an isolated git worktree (`git worktree add`). Claude edits files in the worktree but does not commit — it returns a structured JSON output with a commit message. The orchestrator then runs `git add -A` + `git commit`, pushes the branch, optionally creates a PR (if `autoPR: true`), and cleans up the worktree.
 
-Agents with `input: "pr"` use `checkoutWorktree` to check out an existing PR branch (via `git fetch` + `git worktree add` from the remote tracking branch). After Claude commits, the orchestrator pushes to the same branch, posts a summary comment on the PR, and removes the `prTriggerLabel`. Discovery is label-based: the orchestrator searches for open PRs matching all `prFilterLabels` AND the `prTriggerLabel`. The user adds the trigger label when they want changes; the orchestrator removes it after the agent pushes. This avoids GitHub's limitation where PR authors cannot submit "Request changes" reviews on their own PRs.
+Agents with `input: "pr"` use `checkoutWorktree` to check out an existing PR branch (via `git fetch` + `git worktree add` from the remote tracking branch). Claude edits files and returns a commit message. The orchestrator commits, pushes to the same branch, posts a summary comment on the PR, and removes the `prTriggerLabel`. Discovery is label-based: the orchestrator searches for open PRs matching all `prFilterLabels` AND the `prTriggerLabel`. The user adds the trigger label when they want changes; the orchestrator removes it after the agent pushes. This avoids GitHub's limitation where PR authors cannot submit "Request changes" reviews on their own PRs.
 
 ### Agent configuration
 
@@ -103,8 +113,9 @@ src/
 │   ├── agent.ts                  Agent resolution and listing from AGENT.md files
 │   └── load.ts                   Reads and validates vteam.config.json
 ├── orchestrator/
-│   ├── agent-runner.ts           Spawns claude -p, captures output
-│   └── prompt-builder.ts         Assembles layered prompts (single generic function)
+│   ├── agent-runner.ts           Spawns claude -p, captures structured JSON output
+│   ├── output-schema.ts          Zod schemas for Claude's structured output (reviewer/committer)
+│   └── prompt-builder.ts         Assembles layered prompts + output format instructions
 ├── memory/
 │   ├── task-index.ts             Scans task dirs, builds title list for dedup
 │   └── lock.ts                   Advisory file locking (atomic mkdir)
@@ -169,7 +180,7 @@ All three must pass before any commit or PR:
 - Task frontmatter uses YAML via `gray-matter`.
 - Locking uses atomic `mkdir` with stale detection (30 min timeout).
 - Task files are local-only and gitignored (`vteam/tasks/`). The real shared artifacts are PRs.
-- Agents without `worktree` (e.g. code-reviewer) write files directly using Claude's tools. Agents with `worktree` + `input: "task"` (e.g. refactorer) commit changes; the orchestrator handles pushing, PR creation, and moving task files. Agents with `worktree` + `input: "pr"` (e.g. review-responder) check out existing PR branches, commit changes, push, and post a comment on the PR.
+- Claude produces structured JSON output; the orchestrator handles all state mutations (task file creation, git commits, pushing, PR creation, moving task files). Agents without `worktree` (e.g. code-reviewer) return findings as JSON — the orchestrator creates task files. Agents with `worktree` (e.g. refactorer, review-responder, test-writer) edit files and return a commit message — the orchestrator commits, pushes, and creates PRs.
 
 ## Keeping CLAUDE.md and README.md current
 

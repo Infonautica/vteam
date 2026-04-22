@@ -53,6 +53,8 @@ export function buildPrompt(
     sections.push(buildReviewSection(review));
   }
 
+  sections.push(buildOutputInstruction(agent));
+
   const userPrompt = sections.join("\n\n");
   return { systemPrompt, userPrompt };
 }
@@ -94,11 +96,56 @@ export function buildOnFinishPrompt(
     );
   }
 
+  if (outcome.tasksCreated?.length) {
+    sections.push(`## Tasks Created\n\n${outcome.tasksCreated.map((f) => `- ${f}`).join("\n")}`);
+  }
+
+  if (outcome.commitMessage) {
+    sections.push(`## Commit Message\n\n${outcome.commitMessage.subject}\n\n${outcome.commitMessage.body}`);
+  }
+
   if (outcome.error) {
     sections.push(`## Error\n\n${outcome.error}`);
   }
 
   return { systemPrompt, userPrompt: sections.join("\n\n") };
+}
+
+function buildOutputInstruction(agent: AgentConfig): string {
+  if (agent.worktree) {
+    return `## Output Format
+
+After making your changes, output a JSON object as the LAST thing you produce. Do NOT run git add or git commit — the orchestrator handles committing and pushing. Output ONLY valid JSON with no markdown fencing.
+
+{
+  "status": "completed|partial|blocked|failed",
+  "summary": "what you did",
+  "filesChanged": ["path/to/file1.ts"],
+  "commitMessage": {
+    "subject": "vteam: <short subject>",
+    "body": "PR-ready description of the change"
+  },
+  "blockerReason": "only if status is blocked or failed"
+}`;
+  }
+
+  return `## Output Format
+
+Return your findings as a JSON object. Do NOT write any task files — the orchestrator creates them from your output. Output ONLY valid JSON with no markdown fencing.
+
+{
+  "findings": [
+    {
+      "title": "short descriptive title",
+      "severity": "critical|high|medium|low",
+      "description": "detailed description of the issue and its impact",
+      "suggestedFix": "how to fix it",
+      "files": ["file:line"]
+    }
+  ],
+  "summary": "one-paragraph summary of what you scanned",
+  "areasScanned": ["path1/", "path2/"]
+}`;
 }
 
 function buildReviewSection(review: PRReviewContext): string {

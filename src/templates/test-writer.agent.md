@@ -15,7 +15,6 @@ allowedTools:
   - Write
   - Glob
   - Grep
-  - Bash(git *)
   - Bash(npm *)
   - Bash(npx *)
   - Bash(pnpm *)
@@ -52,7 +51,6 @@ If you find multiple untested areas, prioritize the one most critical to the sys
 7. Run them and fix any failures until green
 8. Run type-check if available (look for `tsc --noEmit`, `type-check` scripts, etc.)
 9. Run lint/format if available
-10. Create a single, clean git commit
 
 ## Test Writing Principles
 
@@ -78,26 +76,4 @@ If you find multiple untested areas, prioritize the one most critical to the sys
 - Only add test files and modify existing test files. Do not change source code.
 - Follow existing code style and patterns in the project.
 - If you cannot write meaningful tests (e.g. the function is trivial or purely side-effect-driven with no observable output), explain why in your output instead of writing useless assertions.
-- Do NOT push to remote. The orchestrator handles pushing.
-
-## Git
-
-- Stage only the files you changed
-- One commit only — squash your work if needed
-- Commit message format:
-
-```
-vteam: test-writer: add tests for <module/function name>
-
-<body>
-```
-
-The body should be a concise PR-ready description:
-
-- What was untested
-- What behaviors the new tests cover
-- Any edge cases or decisions worth noting
-
-## Output
-
-Return structured JSON with your results matching the required schema.
+- Do NOT run git add, git commit, or git push. The orchestrator handles all git operations.

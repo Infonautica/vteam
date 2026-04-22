@@ -33,7 +33,7 @@ vteam runs Claude in headless mode (`claude -p`) as a subprocess. Each agent inv
 └─────────────────────────────────────────────────────────────┘
 ```
 
-The orchestrator never reasons about code. Claude never moves task files or pushes branches. This separation means if Claude crashes mid-run, no state is corrupted — the orchestrator applies state transitions only after Claude finishes.
+The orchestrator never reasons about code. Claude never creates task files, commits, or pushes branches. This separation means if Claude crashes mid-run, no state is corrupted — the orchestrator applies state transitions only after Claude finishes and returns structured output.
 
 ## Prerequisites
 
@@ -118,12 +118,13 @@ Will refuse to run if `vteam/` already exists.
 ### `vteam run code-reviewer`
 
 1. Acquires an advisory lock (`vteam/.locks/code-reviewer.lock`)
-2. Reads the agent prompt from `vteam/code-reviewer/AGENT.md`
+2. Reads the agent prompt from `vteam/agents/code-reviewer/AGENT.md`
 3. Scans existing task files in `todo/` and `done/` and injects their titles into the prompt so Claude knows what's already been found
-4. Spawns `claude -p` — Claude scans the codebase and creates task files directly in `vteam/tasks/todo/`
-5. Releases the lock
+4. Spawns `claude -p` — Claude scans the codebase and returns findings as structured JSON
+5. The orchestrator creates task files in `vteam/tasks/todo/` from each finding
+6. Releases the lock
 
-Claude uses its own file tools (Read, Write, Edit) to create findings. The orchestrator just manages the lifecycle around the Claude invocation.
+Claude is read-only — it scans and reports. The orchestrator owns all file creation.
 
 ### `vteam run refactorer`
 
@@ -131,12 +132,13 @@ Claude uses its own file tools (Read, Write, Edit) to create findings. The orche
 2. Scans `vteam/tasks/todo/` for the highest-severity task (skips tasks that have failed 3+ times)
 3. Creates a git worktree at `.vteam-worktrees/vteam/<task-slug>` branched from the base branch
 4. Builds the prompt with the task description, existing task titles, and agent instructions
-5. Spawns `claude -p` in the worktree — Claude implements the fix and commits
-6. If Claude committed changes:
+5. Spawns `claude -p` in the worktree — Claude implements the fix and returns a commit message as structured JSON
+6. If Claude reported changes:
+   - The orchestrator commits (`git add -A` + `git commit` using Claude's commit message)
    - Force-pushes the branch to origin
    - Creates a pull request via `gh` or `glab` (falls back gracefully if CLI is missing or labels don't exist)
    - Moves the task file from `todo/` to `done/` with completion metadata
-7. If Claude made no commit: increments `retry-count` in the task frontmatter
+7. If Claude reported no changes: increments `retry-count` in the task frontmatter
 8. Cleans up the worktree
 9. Releases the lock
 
@@ -146,9 +148,9 @@ Claude uses its own file tools (Read, Write, Edit) to create findings. The orche
 2. Discovers open PRs that have both the `prFilterLabels` (e.g. `vteam`) and the `prTriggerLabel` (e.g. `vteam:changes-requested`) applied
 3. Checks out the PR branch into an isolated git worktree
 4. Builds a prompt containing all unresolved review comments from the PR
-5. Spawns `claude -p` in the worktree — Claude addresses the feedback, commits the changes, and replies to each comment thread
-6. If Claude committed changes:
-   - Force-pushes the branch to origin
+5. Spawns `claude -p` in the worktree — Claude addresses the feedback, replies to each comment thread, and returns a commit message as structured JSON
+6. If Claude reported changes:
+   - The orchestrator commits and force-pushes the branch to origin
    - Posts a summary comment on the PR
    - Removes the `prTriggerLabel` so the agent won't re-process the PR on the next run
 7. Cleans up the worktree
@@ -304,7 +306,7 @@ The refactorer picks the highest-severity task first.
 
 There is no separate overview file. At prompt-build time, the orchestrator scans all task files in `todo/` and `done/`, reads their frontmatter titles, and injects a summary list into the agent's prompt. Claude uses this list to avoid reporting duplicate findings.
 
-The orchestrator also does a normalized title comparison as a safety net when creating task files programmatically.
+Claude returns findings as structured JSON; the orchestrator creates the actual task files.
 
 ### Custom memory
 
@@ -316,10 +318,10 @@ vteam ships with four default agents (code-reviewer, refactorer, review-responde
 
 ### Code reviewer
 
-- Read-only — scans the codebase, never modifies source files
-- Creates task files directly in `vteam/tasks/todo/` (local, gitignored)
+- Read-only — scans the codebase, never modifies any files
+- Returns findings as structured JSON — the orchestrator creates task files in `vteam/tasks/todo/`
 - Does not use a worktree or commit — findings stay local until the refactorer acts on them
-- Limited to 5 findings per run (configurable in the AGENT.md prompt)
+- Limited to 1 finding per run (configurable in the AGENT.md prompt)
 - Prioritizes severity: security bugs > performance > code quality
 
 ### Refactorer
@@ -327,16 +329,15 @@ vteam ships with four default agents (code-reviewer, refactorer, review-responde
 - Picks one task per run from `todo/`
 - Works in an isolated git worktree (never touches the main working tree)
 - Makes minimal, focused changes following existing code style
-- Commits with `vteam: <task-title>` message format
-- Does not push — the orchestrator handles pushing and PR creation
+- Does not commit or push — the orchestrator handles all git operations and PR creation
 
 ### Review responder
 
 - Triggered by the `prTriggerLabel` label on an open PR (e.g. `vteam:changes-requested`)
 - Checks out the PR branch in an isolated worktree
 - Reads all unresolved review comments and addresses the feedback
-- Commits changes and replies to each comment thread with an explanation
-- Pushes to the PR branch and removes the trigger label
+- Replies to each comment thread with an explanation
+- Does not commit or push — the orchestrator handles all git operations
 
 ### Test writer
 
@@ -344,10 +345,11 @@ vteam ships with four default agents (code-reviewer, refactorer, review-responde
 - Picks one function or feature per run — keeps PRs small and reviewable
 - Studies existing test files to match project conventions (runner, helpers, mocking patterns)
 - Works in an isolated git worktree
-- Runs tests, type-check, and lint before committing
+- Runs tests, type-check, and lint before reporting completion
 - Does not modify source code — only adds or updates test files
+- Does not commit or push — the orchestrator handles all git operations
 
-All agents receive existing task titles in their prompt, giving them full context of past and present work.
+All agents return structured JSON output. The orchestrator validates it, creates task files or git commits, and manages the full lifecycle. All agents receive existing task titles in their prompt, giving them full context of past and present work.
 
 ## Caveats and known limitations
 

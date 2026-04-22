@@ -13,40 +13,46 @@ interface AgentRunOptions {
   disallowedTools?: string[];
 }
 
-interface AgentRunResult {
+export interface AgentRunResult {
   stdout: string;
   stderr: string;
   exitCode: number;
+  resultText: string | null;
+  costUsd?: number;
+  durationMs?: number;
+}
+
+interface ContentBlock {
+  type: string;
+  text?: string;
+  name?: string;
+  input?: Record<string, unknown>;
 }
 
 interface StreamEvent {
   type: string;
   subtype?: string;
-  tool_name?: string;
-  tool_input?: Record<string, unknown>;
-  content?: string;
-  message?: string;
-  session_id?: string;
+  message?: { content?: ContentBlock[] };
+  result?: string;
+  cost_usd?: number;
+  duration_ms?: number;
 }
 
 function formatEvent(event: StreamEvent): string | null {
-  switch (event.type) {
-    case "assistant": {
-      if (event.subtype === "tool_use" && event.tool_name) {
-        const input = event.tool_input ?? {};
-        const detail = input.command ?? input.pattern ?? input.file_path ?? input.description ?? "";
-        return `  [tool] ${event.tool_name}${detail ? `: ${String(detail).slice(0, 120)}` : ""}`;
-      }
-      if (event.subtype === "text" && event.content) {
-        return `  [text] ${event.content.slice(0, 200)}`;
-      }
-      return null;
+  if (event.type !== "assistant" || !event.message?.content) return null;
+
+  const lines: string[] = [];
+  for (const block of event.message.content) {
+    if (block.type === "tool_use" && block.name) {
+      const input = block.input ?? {};
+      const detail = input.command ?? input.pattern ?? input.file_path ?? input.description ?? "";
+      lines.push(`[claude][tool] ${block.name}${detail ? `: ${String(detail).slice(0, 120)}` : ""}`);
     }
-    case "result":
-      return null;
-    default:
-      return null;
+    if (block.type === "text" && block.text) {
+      lines.push(`[claude][text] ${block.text.slice(0, 200)}`);
+    }
   }
+  return lines.length > 0 ? lines.join("\n") : null;
 }
 
 export async function runClaudeAgent(
@@ -102,6 +108,9 @@ export async function runClaudeAgent(
       let stdout = "";
       let stderr = "";
       let lineBuffer = "";
+      let resultText: string | null = null;
+      let costUsd: number | undefined;
+      let durationMs: number | undefined;
 
       proc.stdout.on("data", (data: Buffer) => {
         const chunk = data.toString();
@@ -116,9 +125,15 @@ export async function runClaudeAgent(
           if (!trimmed) continue;
           try {
             const event: StreamEvent = JSON.parse(trimmed);
-            console.log(JSON.stringify(event, null, 2));
+            const formatted = formatEvent(event);
+            if (formatted) console.log(formatted);
+
+            if (event.type === "result") {
+              if (event.result) resultText = event.result;
+              costUsd = event.cost_usd;
+              durationMs = event.duration_ms;
+            }
           } catch {
-            // Not JSON — print raw
             console.log(trimmed);
           }
         }
@@ -138,17 +153,24 @@ export async function runClaudeAgent(
         if (lineBuffer.trim()) {
           try {
             const event: StreamEvent = JSON.parse(lineBuffer.trim());
-            const formatted = formatEvent(event);
-            if (formatted) console.log(formatted);
+            if (event.type === "result" && event.result) {
+              resultText = event.result;
+              costUsd = event.cost_usd;
+              durationMs = event.duration_ms;
+            }
           } catch {
             // ignore
           }
         }
+
         console.log(`\n[vteam] claude exited with code ${code}`);
         resolve({
           stdout,
           stderr,
           exitCode: code ?? 1,
+          resultText,
+          costUsd,
+          durationMs,
         });
       });
     });

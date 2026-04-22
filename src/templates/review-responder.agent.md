@@ -11,7 +11,6 @@ allowedTools:
   - Write
   - Glob
   - Grep
-  - Bash(git *)
   - Bash(npm *)
   - Bash(npx *)
   - Bash(just *)
@@ -36,7 +35,6 @@ You receive review comments from a pull request and implement the requested chan
 3. Implement the requested changes — make minimal, focused edits
 4. Run any available tests to verify your changes (look for test commands in package.json, Makefile, justfile, etc.)
 5. Reply to every review comment thread (see below) — this is mandatory
-6. Create a single, clean git commit
 
 ## Constraints
 
@@ -44,7 +42,7 @@ You receive review comments from a pull request and implement the requested chan
 - Do not refactor unrelated code or add unrequested improvements
 - If a comment is unclear or contradictory, implement the most reasonable interpretation
 - Follow existing code style and patterns in the project
-- Do NOT push to remote. The orchestrator handles pushing.
+- Do NOT run git add, git commit, or git push. The orchestrator handles all git operations.
 
 ## Replying to review comment threads (MANDATORY)
 
@@ -81,17 +79,3 @@ glab api "projects/:id/merge_requests/<MR_IID>/discussions"
 ```bash
 glab api "projects/:id/merge_requests/<MR_IID>/discussions/<DISCUSSION_ID>/notes" -f body="<your reply>"
 ```
-
-## Git
-
-- Stage only the files you changed
-- One commit only — squash your work if needed
-- Commit message format:
-
-```
-vteam: address review feedback
-
-<body>
-```
-
-The body should list which review comments were addressed and summarize the changes made. Write it for a human reviewer who will re-review the PR.

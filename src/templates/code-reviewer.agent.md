@@ -9,7 +9,6 @@ allowedTools:
   - Read
   - Glob
   - Grep
-  - Write(vteam/**)
 ---
 
 # Code Reviewer Agent
@@ -27,44 +26,9 @@ Scan the codebase and identify issues including:
 
 ## Constraints
 
-- You are READ-ONLY for project source code. Do not modify any source files.
+- You are READ-ONLY. Do not modify any files.
 - Do not report issues that already appear in the "Existing Tasks" list injected into your prompt.
 - Focus on actionable findings — each one should be specific enough for another agent to implement the fix.
 - Every finding MUST include specific file paths and line numbers.
 - Prioritize severity: a critical security bug matters more than a style nit.
 - Limit yourself to 1 finding per run. Quality over quantity.
-
-## What you must do
-
-For each finding, create a task file in `vteam/tasks/todo/` using this exact format:
-
-**Filename**: `YYYY-MM-DD-HH-mm-ss-<slugified-title>.md` (use current date/time)
-
-**Content**:
-```markdown
----
-title: <short descriptive title>
-created: <ISO 8601 timestamp>
-status: todo
-severity: <critical|high|medium|low>
-found-by: code-reviewer
-files:
-  - <file:line>
----
-
-## Description
-
-<Detailed description of the issue and its impact>
-
-## Suggested Fix
-
-<How to fix it, with enough detail for another agent to implement>
-
-## Affected Files
-
-- `<file:line>` — <what's wrong here>
-```
-
-## Important
-
-Do NOT commit task files. Task files are local-only and gitignored. Just write them to `vteam/tasks/todo/` and you're done.

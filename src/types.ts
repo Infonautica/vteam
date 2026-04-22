@@ -59,6 +59,8 @@ export interface RunOutcome {
   branch?: string;
   prUrl?: string;
   reviewedPR?: { number: number; title: string; url: string };
+  tasksCreated?: string[];
+  commitMessage?: CommitMessage;
 }
 
 export interface ReviewComment {
@@ -105,10 +107,16 @@ export interface ReviewerOutput {
   areasScanned: string[];
 }
 
-export interface RefactorerOutput {
+export interface CommitMessage {
+  subject: string;
+  body: string;
+}
+
+export interface CommitterOutput {
   status: "completed" | "partial" | "blocked" | "failed";
   summary: string;
   filesChanged: string[];
+  commitMessage: CommitMessage;
   blockerReason?: string;
 }
 
@@ -127,5 +135,9 @@ export interface RunState {
   branchName?: string;
   taskFile?: string;
   error?: string;
+  claudeOutput?: ReviewerOutput | CommitterOutput;
+  tasksCreated?: string[];
+  commitSha?: string;
+  commitMessage?: CommitMessage;
 }
 

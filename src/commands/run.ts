@@ -2,14 +2,16 @@ import {
   mkdirSync,
   writeFileSync,
 } from "node:fs";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { acquireLock, type FileLock } from "../memory/lock.js";
 import { buildPrompt, buildOnFinishPrompt } from "../orchestrator/prompt-builder.js";
 import { runClaudeAgent } from "../orchestrator/agent-runner.js";
+import { parseReviewerOutput, parseCommitterOutput } from "../orchestrator/output-schema.js";
 import { buildTaskIndex } from "../memory/task-index.js";
 import {
   severityPriority,
+  createTaskFile,
   moveTask,
   updateTaskFrontmatter,
 } from "../tasks/task-file.js";
@@ -92,6 +94,18 @@ export async function runCommand(agentName?: string): Promise<void> {
   const config = loadConfig(cwd);
   const agent = resolveAgentConfig(agentName, cwd);
   await runAgent(cwd, config, agent);
+}
+
+function hasUncommittedChanges(worktreePath: string): boolean {
+  try {
+    const status = execFileSync("git", ["status", "--porcelain"], {
+      cwd: worktreePath,
+      encoding: "utf-8",
+    });
+    return status.trim().length > 0;
+  } catch {
+    return false;
+  }
 }
 
 async function runAgent(
@@ -233,20 +247,37 @@ async function runAgent(
       throw new Error(`Claude exited with code ${result.exitCode}`);
     }
 
-    if (agent.worktree && worktreePath && branchName) {
-      const hasCommit = hasNewCommit(worktreePath, config.baseBranch);
+    if (!result.resultText) {
+      throw new Error("Claude produced no output");
+    }
 
-      if (hasCommit) {
-        console.log(`\n${agent.name} made changes. Pushing...`);
+    runState.status = "processing";
+    writeRunState(cwd, runState);
+
+    if (agent.worktree && worktreePath && branchName) {
+      const output = parseCommitterOutput(result.resultText);
+      runState.claudeOutput = output;
+      runState.commitMessage = output.commitMessage;
+
+      if ((output.status === "completed" || output.status === "partial") && hasUncommittedChanges(worktreePath)) {
+        console.log(`\n${agent.name} made changes. Committing...`);
+        execFileSync("git", ["add", "-A"], { cwd: worktreePath, stdio: "pipe" });
+        execFileSync(
+          "git",
+          ["commit", "-m", output.commitMessage.subject, "-m", output.commitMessage.body],
+          { cwd: worktreePath, stdio: "pipe" },
+        );
+        runState.commitSha = getCommitSha(worktreePath);
+
+        console.log(`Pushing...`);
         pushBranch(worktreePath, branchName);
 
         if (reviewContext) {
           try {
-            const sha = getCommitSha(worktreePath);
             postPRComment(
               config.platform,
               reviewContext.pr.number,
-              `Addressed review feedback in \`${sha.slice(0, 7)}\`.`,
+              `Addressed review feedback in \`${runState.commitSha.slice(0, 7)}\`.`,
               cwd,
             );
             console.log(`Comment posted on PR #${reviewContext.pr.number}.`);
@@ -271,10 +302,8 @@ async function runAgent(
         if (agent.autoPR) {
           console.log("Creating pull request...");
           try {
-            const commitSubject = getCommitSubject(worktreePath);
-            const commitBody = getCommitBody(worktreePath);
-            const prBody = commitBody || `Automated by vteam (${agent.name}).${task ? `\n\nTask: ${task.frontmatter.title}` : ""}`;
-            const summary = task?.frontmatter.title || commitSubject.replace(/^vteam:\s*/i, "") || "";
+            const prBody = output.commitMessage.body || `Automated by vteam (${agent.name}).${task ? `\n\nTask: ${task.frontmatter.title}` : ""}`;
+            const summary = task?.frontmatter.title || output.commitMessage.subject.replace(/^vteam:\s*/i, "") || "";
             const prTitle = summary
               ? `vteam: ${agent.name}: ${summary}`
               : `vteam: ${agent.name}`;
@@ -309,7 +338,10 @@ async function runAgent(
           console.log("Task completed.");
         }
       } else {
-        console.log(`\n${agent.name} did not commit any changes.`);
+        console.log(`\n${agent.name} did not produce changes.`);
+        if (output.status === "blocked" || output.status === "failed") {
+          console.log(`Reason: ${output.blockerReason ?? output.summary}`);
+        }
         if (task) {
           const currentRetries = task.frontmatter["retry-count"] ?? 0;
           updateTaskFrontmatter(task.path, {
@@ -320,7 +352,28 @@ async function runAgent(
           );
         }
       }
+    } else if (!agent.worktree) {
+      const output = parseReviewerOutput(result.resultText);
+      runState.claudeOutput = output;
+
+      if (output.findings.length > 0) {
+        const todoDir = resolve(tasksDir, "todo");
+        mkdirSync(todoDir, { recursive: true });
+        const created: string[] = [];
+
+        for (const finding of output.findings) {
+          const filename = createTaskFile(todoDir, finding, agent.name);
+          created.push(filename);
+          console.log(`Created task: ${finding.title} (${finding.severity})`);
+        }
+
+        runState.tasksCreated = created;
+      } else {
+        console.log("No findings.");
+      }
     }
+
+    writeRunState(cwd, runState);
 
     console.log(`\n${agent.name} finished.`);
     const completedAt = new Date().toISOString();
@@ -337,6 +390,8 @@ async function runAgent(
       branch: branchName,
       prUrl,
       reviewedPR: reviewContext ? { number: reviewContext.pr.number, title: reviewContext.pr.title, url: reviewContext.pr.url } : undefined,
+      tasksCreated: runState.tasksCreated,
+      commitMessage: runState.commitMessage,
     };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -403,39 +458,5 @@ async function runOnFinishHook(
       "On-finish hook failed:",
       hookErr instanceof Error ? hookErr.message : hookErr,
     );
-  }
-}
-
-function hasNewCommit(worktreePath: string, baseBranch: string): boolean {
-  try {
-    const log = execSync(`git log ${baseBranch}..HEAD --oneline`, {
-      cwd: worktreePath,
-      encoding: "utf-8",
-    });
-    return log.trim().length > 0;
-  } catch {
-    return false;
-  }
-}
-
-function getCommitSubject(worktreePath: string): string {
-  try {
-    return execSync("git log -1 --format=%s", {
-      cwd: worktreePath,
-      encoding: "utf-8",
-    }).trim();
-  } catch {
-    return "";
-  }
-}
-
-function getCommitBody(worktreePath: string): string {
-  try {
-    return execSync("git log -1 --format=%b", {
-      cwd: worktreePath,
-      encoding: "utf-8",
-    }).trim();
-  } catch {
-    return "";
   }
 }
