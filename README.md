@@ -4,7 +4,7 @@
 
 A virtual development team framework that orchestrates AI agents powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to autonomously review codebases and implement fixes.
 
-You define agent prompts, triage findings, and review merge requests. vteam handles everything else: scheduling agent runs, managing task lifecycle, isolating work in git worktrees, and creating branches and pull requests.
+You define agent prompts, triage findings, and review pull requests. vteam handles everything else: scheduling agent runs, managing task lifecycle, isolating work in git worktrees, and creating branches and pull requests.
 
 ## How it works
 
@@ -14,13 +14,13 @@ vteam runs Claude in headless mode (`claude -p`) as a subprocess. Each agent inv
 ┌─────────────────────────────────────────────────────────────┐
 │                      vteam (TypeScript)                     │
 │                                                             │
-│  Owns all state: tasks, worktrees, MRs                      │
+│  Owns all state: tasks, worktrees, PRs                      │
 │                                                             │
 │  ┌───────────────────┐ ┌────────────┐ ┌──────────────────┐  │
 │  │ Agent definitions │ │ Task mgr   │ │ Worktree mgr     │  │
 │  └───────────────────┘ └────────────┘ └──────────────────┘  │
 │  ┌───────────────────┐ ┌─────────────────────────────────┐  │
-│  │ Lock mgr (mkdir)  │ │ MR integration (gh / glab CLI)  │  │
+│  │ Lock mgr (mkdir)  │ │ PR integration (gh / glab CLI)  │  │
 │  └───────────────────┘ └─────────────────────────────────┘  │
 └────────────────────────────┬────────────────────────────────┘
                              │ spawns claude -p
@@ -40,7 +40,7 @@ The orchestrator never reasons about code. Claude never moves task files or push
 - **Node.js** >= 20
 - **Claude Code** CLI — `claude` must be on your PATH ([install guide](https://docs.anthropic.com/en/docs/claude-code/getting-started))
 - **Git** — the project must be a git repository
-- **`gh`** (GitHub CLI) or **`glab`** (GitLab CLI) — required for automatic pull/merge request creation. Without it, branches are pushed but MRs must be created manually.
+- **`gh`** (GitHub CLI) or **`glab`** (GitLab CLI) — required for automatic pull request creation. Without it, branches are pushed but PRs must be created manually.
 
 ## Installation
 
@@ -73,6 +73,20 @@ vteam run refactorer
 
 # 5. Review the PR as you would any other
 ```
+
+### Running on a schedule
+
+Agents with a `cron` field in their AGENT.md frontmatter can be scheduled via the loop command:
+
+```bash
+# Start the scheduler — runs agents on their cron schedules
+vteam loop start
+
+# Check which agents are scheduled and when they fire next
+vteam loop status
+```
+
+The scheduler is a foreground process — stop it with Ctrl+C. If an agent is still running when its next cron tick fires, the tick is skipped.
 
 ## Commands
 
@@ -118,7 +132,7 @@ Claude uses its own file tools (Read, Write, Edit) to create findings. The orche
 5. Spawns `claude -p` in the worktree — Claude implements the fix and commits
 6. If Claude committed changes:
    - Force-pushes the branch to origin
-   - Creates a pull/merge request via `gh` or `glab` (falls back gracefully if CLI is missing or labels don't exist)
+   - Creates a pull request via `gh` or `glab` (falls back gracefully if CLI is missing or labels don't exist)
    - Moves the task file from `todo/` to `done/` with completion metadata
 7. If Claude made no commit: increments `retry-count` in the task frontmatter
 8. Cleans up the worktree
@@ -167,8 +181,8 @@ Global settings live in `vteam/vteam.config.json`:
 
 | Field              | Description                                                                             |
 | ------------------ | --------------------------------------------------------------------------------------- |
-| `baseBranch`       | Branch to create worktrees from and target MRs against                                  |
-| `platform`         | `"github"` or `"gitlab"` — determines which CLI (`gh` / `glab`) is used for MR creation |
+| `baseBranch`       | Branch to create worktrees from and target PRs against                                  |
+| `platform`         | `"github"` or `"gitlab"` — determines which CLI (`gh` / `glab`) is used for PR creation |
 | `worktreeDir`      | Where worktrees are created (relative to repo root). Gitignored.                        |
 | `tasks.maxRetries` | How many times the refactorer retries a failing task before skipping it                 |
 
@@ -182,7 +196,7 @@ model: sonnet
 worktree: true
 input: task
 autoPR: true
-prCreateLabels: [vteam, automated]
+prCreateLabels: [vteam]
 scanPaths: [src/]
 excludePaths: [node_modules/, dist/]
 ---
@@ -238,7 +252,7 @@ code-reviewer finds issue
         ▼
     ┌──────┐      refactorer     ┌──────┐
     │ todo │ ──────────────────▶ │ done │
-    └──────┘   branch + MR       └──────┘
+    └──────┘   branch + PR       └──────┘
 ```
 
 ### Task file format
@@ -290,6 +304,10 @@ There is no separate overview file. At prompt-build time, the orchestrator scans
 
 The orchestrator also does a normalized title comparison as a safety net when creating task files programmatically.
 
+### Custom memory
+
+The built-in task-based memory is intentionally minimal — vteam is not opinionated about how you give agents context. You can build your own memory files or mechanisms and point agents to them in their AGENT.md prompts. For example, you might maintain a markdown file with architectural decisions, a list of known false positives, or a summary of past reviews — then instruct the agent to read it as part of its workflow. As long as Claude can access the file via its tools, it works.
+
 ## Agents
 
 vteam ships with three default agents (code-reviewer, refactorer, review-responder). Add custom agents by creating `vteam/agents/<name>/AGENT.md` — no config changes needed.
@@ -308,7 +326,7 @@ vteam ships with three default agents (code-reviewer, refactorer, review-respond
 - Works in an isolated git worktree (never touches the main working tree)
 - Makes minimal, focused changes following existing code style
 - Commits with `vteam: <task-title>` message format
-- Does not push — the orchestrator handles pushing and MR creation
+- Does not push — the orchestrator handles pushing and PR creation
 
 ### Review responder
 
@@ -338,10 +356,10 @@ vteam uses advisory file locking via atomic `mkdir` (POSIX guarantees this is at
 - **Force push**: vteam force-pushes to its own branches (`vteam/*`). This is safe because these branches are ephemeral and owned by the tool — no human should be pushing to them. But if you manually commit to a `vteam/*` branch, those commits will be lost on the next refactorer run.
 - **Disk space**: Each worktree is a full checkout. On large repos, this can be significant. Worktrees are cleaned up after each run.
 
-### MR / PR creation
+### PR creation
 
 - Requires `gh` (GitHub) or `glab` (GitLab) CLI installed and authenticated.
-- If the CLI is missing, the branch is still pushed — you just need to create the MR manually.
+- If the CLI is missing, the branch is still pushed — you just need to create the PR manually.
 - Labels are auto-created in the repository if they don't already exist.
 - Set `autoPR: false` in the agent's AGENT.md frontmatter to skip PR creation entirely.
 
@@ -365,14 +383,9 @@ just clean          # rm -rf dist/
 
 This project has its own `vteam/` directory pointing the agents at `src/`. Run `just dev run code-reviewer` to have vteam review itself.
 
-### npm dependencies
+### Dependencies
 
-| Package     | Purpose                                            |
-| ----------- | -------------------------------------------------- |
-| `commander` | CLI argument parsing                               |
-| `zod`       | Schema validation for config and agent frontmatter |
-
-YAML frontmatter parsing and slug generation are handled by internal modules (`src/frontmatter.ts`, `src/slugify.ts`) with no external dependencies.
+vteam aims to keep external dependencies to a minimum. YAML frontmatter parsing, slug generation, and other utilities are handled by internal modules with no external dependencies.
 
 ### System dependencies
 
@@ -381,7 +394,7 @@ YAML frontmatter parsing and slug generation are handled by internal modules (`s
 | `claude` | Yes        | Claude Code CLI — all agent intelligence  |
 | `git`    | Yes        | Worktree management, branch operations    |
 | `gh`     | For GitHub | Pull request creation (`gh pr create`)    |
-| `glab`   | For GitLab | Merge request creation (`glab mr create`) |
+| `glab`   | For GitLab | Pull request creation (`glab mr create`)  |
 
 ## License
 

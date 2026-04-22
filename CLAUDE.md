@@ -49,7 +49,7 @@ cron: "0 */6 * * *"
 worktree: true
 input: task
 autoPR: true
-prCreateLabels: [vteam, automated]
+prCreateLabels: [vteam]
 scanPaths: [src/]
 excludePaths: [node_modules/, dist/]
 ---

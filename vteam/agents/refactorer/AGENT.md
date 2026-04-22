@@ -6,7 +6,6 @@ input: task
 autoPR: true
 prCreateLabels:
   - vteam
-  - automated
 allowedTools:
   - Read
   - Edit
