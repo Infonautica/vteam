@@ -94,6 +94,13 @@ export async function runClaudeAgent(
       const deadline = setTimeout(() => {
         console.error(`[vteam] Claude subprocess timed out after ${timeoutMs}ms — sending SIGTERM`);
         proc.kill("SIGTERM");
+
+        const killDeadline = setTimeout(() => {
+          console.error(`[vteam] Claude did not exit after SIGTERM — sending SIGKILL`);
+          proc.kill("SIGKILL");
+        }, 30_000);
+
+        proc.once("close", () => clearTimeout(killDeadline));
       }, timeoutMs);
 
       proc.stdin.write(options.userPrompt);
