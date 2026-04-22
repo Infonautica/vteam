@@ -96,6 +96,7 @@ export async function runClaudeAgent(
         proc.kill("SIGTERM");
       }, timeoutMs);
 
+      proc.stdin.on("error", () => {});
       proc.stdin.write(options.userPrompt);
       proc.stdin.end();
 
