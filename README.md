@@ -29,7 +29,7 @@ vteam runs Claude in headless mode (`claude -p`) as a subprocess. Each agent inv
 │                    Claude (headless)                        │
 │                                                             │
 │  Owns all intelligence: reads code, finds issues,           │
-│  implements fixes, writes task files, commits               │
+│  implements fixes, returns structured JSON                  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -213,8 +213,8 @@ excludePaths: [node_modules/, dist/]
 | `input`           | —          | `"task"` to pick from `todo/` queue; `"pr"` to respond to PR review comments (requires `worktree: true`)         |
 | `prFilterLabels`  | —          | Labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)                                                |
 | `prTriggerLabel`  | —          | Transient label signalling "this PR needs work" (e.g. `vteam:changes-requested`); removed after the agent pushes |
-| `autoPR`          | `false`    | Create a pull request after pushing                                                                               |
-| `prCreateLabels`  | —          | Labels applied to created PRs (auto-created if they don't exist)                                                  |
+| `autoPR`          | `false`    | Create a pull request after pushing                                                                              |
+| `prCreateLabels`  | —          | Labels applied to created PRs (auto-created if they don't exist)                                                 |
 | `scanPaths`       | —          | Directories to review (empty = entire repo)                                                                      |
 | `excludePaths`    | —          | Directories to skip                                                                                              |
 | `allowedTools`    | —          | Claude Code tools the agent may use (same syntax as `--allowedTools` CLI flag, e.g. `["Read", "Bash(git *)"]`)   |
@@ -238,11 +238,11 @@ If the run failed, also ping @oncall.
 
 The user prompt is auto-generated from the run outcome and includes: agent name, status (completed/failed), timestamps, task details, branch name, PR URL, reviewed PR info, and error message (if any).
 
-| Field             | Default | Description                                           |
-| ----------------- | ------- | ----------------------------------------------------- |
-| `model`           | —       | Claude model override for the hook                    |
-| `allowedTools`    | —       | Tools the hook may use                                |
-| `disallowedTools` | —       | Tools the hook may NOT use                            |
+| Field             | Default | Description                        |
+| ----------------- | ------- | ---------------------------------- |
+| `model`           | —       | Claude model override for the hook |
+| `allowedTools`    | —       | Tools the hook may use             |
+| `disallowedTools` | —       | Tools the hook may NOT use         |
 
 The hook runs in the main project directory (not the worktree). Hook failures are logged but do not affect the agent run's exit status. The hook is opt-in — agents without an `ON_FINISH.md` skip it entirely.
 
@@ -380,7 +380,7 @@ vteam uses advisory file locking via atomic `mkdir` (POSIX guarantees this is at
 
 - **No budget caps**: There's no `--max-budget-usd` on agent runs. A single code-reviewer or refactorer invocation uses one Claude session with no spending limit. Monitor usage via your Anthropic dashboard.
 - **No rollback**: If the refactorer's changes break something, you close the PR. There's no automatic revert mechanism.
-- **Title-based dedup only**: Duplicate detection relies on Claude reading existing task titles and a basic string comparison. Similar but differently-worded findings may slip through.
+- **Title-based dedup only**: Duplicate detection relies on Claude reading existing task titles in its prompt. Similar but differently-worded findings may slip through.
 
 ## Development
 
@@ -402,12 +402,12 @@ vteam aims to keep external dependencies to a minimum. YAML frontmatter parsing,
 
 ### System dependencies
 
-| Tool     | Required   | Purpose                                   |
-| -------- | ---------- | ----------------------------------------- |
-| `claude` | Yes        | Claude Code CLI — all agent intelligence  |
-| `git`    | Yes        | Worktree management, branch operations    |
-| `gh`     | For GitHub | Pull request creation (`gh pr create`)    |
-| `glab`   | For GitLab | Pull request creation (`glab mr create`)  |
+| Tool     | Required   | Purpose                                  |
+| -------- | ---------- | ---------------------------------------- |
+| `claude` | Yes        | Claude Code CLI — all agent intelligence |
+| `git`    | Yes        | Worktree management, branch operations   |
+| `gh`     | For GitHub | Pull request creation (`gh pr create`)   |
+| `glab`   | For GitLab | Pull request creation (`glab mr create`) |
 
 ## License
 
