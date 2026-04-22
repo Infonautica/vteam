@@ -4,7 +4,6 @@ import {
   renameSync,
   readdirSync,
   existsSync,
-  unlinkSync,
 } from "node:fs";
 import { resolve, basename } from "node:path";
 import { parse, stringify } from "../frontmatter.js";
@@ -89,11 +88,9 @@ export function moveTask(
     const task = parseTaskFile(srcPath);
     const merged = { ...task.frontmatter, ...extraFrontmatter };
     const content = stringify(task.body, merged);
-    writeFileSync(destPath, content, "utf-8");
-    unlinkSync(srcPath);
-  } else {
-    renameSync(srcPath, destPath);
+    writeFileSync(srcPath, content, "utf-8");
   }
+  renameSync(srcPath, destPath);
 }
 
 export function updateTaskFrontmatter(
