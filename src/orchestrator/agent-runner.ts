@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { writeFileSync, rmSync, mkdtempSync } from "node:fs";
+import { createReadStream, writeFileSync, rmSync, mkdtempSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -61,7 +61,10 @@ export async function runClaudeAgent(
   const tmp = mkdtempSync(join(tmpdir(), "vteam-"));
   const systemPromptFile = resolve(tmp, "system-prompt.md");
 
+  const userPromptFile = resolve(tmp, "user-prompt.md");
+
   writeFileSync(systemPromptFile, options.systemPrompt, "utf-8");
+  writeFileSync(userPromptFile, options.userPrompt, "utf-8");
 
   const args = [
     "-p",
@@ -85,7 +88,8 @@ export async function runClaudeAgent(
     args.push("--disallowedTools", ...options.disallowedTools);
   }
 
-  console.log(`[vteam] System prompt file: ${systemPromptFile}`);
+  console.log(`[vteam] Agent personality: ${systemPromptFile}`);
+  console.log(`[vteam] User prompt:     ${userPromptFile}`);
   console.log(`[vteam] cwd: ${options.cwd}`);
 
   try {
@@ -102,8 +106,7 @@ export async function runClaudeAgent(
         proc.kill("SIGTERM");
       }, timeoutMs);
 
-      proc.stdin.write(options.userPrompt);
-      proc.stdin.end();
+      createReadStream(userPromptFile).pipe(proc.stdin);
 
       let stdout = "";
       let stderr = "";
