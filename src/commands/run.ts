@@ -83,7 +83,11 @@ function listAgents(cwd: string): void {
   }
 }
 
-export async function runCommand(agentName?: string): Promise<void> {
+interface RunOptions {
+  focus?: string;
+}
+
+export async function runCommand(agentName: string | undefined, options: RunOptions): Promise<void> {
   const cwd = process.cwd();
 
   if (!agentName) {
@@ -93,7 +97,7 @@ export async function runCommand(agentName?: string): Promise<void> {
 
   const config = loadConfig(cwd);
   const agent = resolveAgentConfig(agentName, cwd);
-  await runAgent(cwd, config, agent);
+  await runAgent(cwd, config, agent, options.focus);
 }
 
 function hasUncommittedChanges(worktreePath: string): boolean {
@@ -112,6 +116,7 @@ async function runAgent(
   cwd: string,
   config: VteamConfig,
   agent: AgentConfig,
+  focus?: string,
 ): Promise<void> {
   const runId = generateRunId(agent.name);
   const tasksDir = resolve(cwd, "vteam", "tasks");
@@ -228,6 +233,7 @@ async function runAgent(
       tasksDir,
       task,
       reviewContext,
+      focus,
     );
 
     console.log(`Running ${agent.name} agent...`);

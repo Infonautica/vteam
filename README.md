@@ -115,6 +115,16 @@ Also adds `.vteam-worktrees/` and `vteam/tasks/` to `.gitignore`. Task files are
 
 Will refuse to run if `vteam/` already exists.
 
+### `--focus` option
+
+All `vteam run` invocations accept `--focus <text>` to inject priority context into the agent's prompt. The text is added as the first section of the user prompt so Claude prioritizes it above all other considerations.
+
+```bash
+vteam run refactorer --focus "the issue about XYZ"
+vteam run test-writer --focus "invite user functionality"
+vteam run code-reviewer --focus "only look at the auth module"
+```
+
 ### `vteam run code-reviewer`
 
 1. Acquires an advisory lock (`vteam/.locks/code-reviewer.lock`)

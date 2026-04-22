@@ -210,6 +210,22 @@ describe("buildPrompt", () => {
     expect(userPrompt).not.toContain("Pull Request");
     expect(userPrompt).not.toContain("Review Comments");
   });
+
+  it("includes focus as first section in user prompt", () => {
+    const { agentConfig, tasksDir } = setup();
+    const { userPrompt } = buildPrompt(agentConfig, tasksDir, undefined, undefined, "the invite user functionality");
+    expect(userPrompt).toContain("## Priority Focus");
+    expect(userPrompt).toContain("the invite user functionality");
+    const focusIndex = userPrompt.indexOf("## Priority Focus");
+    const scopeIndex = userPrompt.indexOf("## Scope");
+    expect(focusIndex).toBeLessThan(scopeIndex);
+  });
+
+  it("omits focus section when not provided", () => {
+    const { agentConfig, tasksDir } = setup();
+    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+    expect(userPrompt).not.toContain("Priority Focus");
+  });
 });
 
 describe("buildOnFinishPrompt", () => {

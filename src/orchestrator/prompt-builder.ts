@@ -13,6 +13,7 @@ export function buildPrompt(
   tasksDir: string,
   task?: TaskFile,
   review?: PRReviewContext,
+  focus?: string,
 ): PromptParts {
   const raw = readFileSync(agent.agentMdPath, "utf-8");
   const { content } = parse(raw);
@@ -20,6 +21,12 @@ export function buildPrompt(
   const systemPrompt = content.trim();
 
   const sections: string[] = [];
+
+  if (focus) {
+    sections.push(
+      `## Priority Focus\n\nThe user wants you to prioritize the following context above all other considerations:\n\n${focus}`,
+    );
+  }
 
   const index = buildTaskIndex(tasksDir);
   if (index.all.length > 0) {

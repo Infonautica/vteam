@@ -23,7 +23,7 @@ Each agent is invoked as a `claude -p` subprocess with:
 - `--allowedTools` / `--disallowedTools` — per-agent tool permissions from frontmatter (uses the same syntax as native Claude Code CLI flags)
 - `--no-session-persistence` — no session clutter
 
-The orchestrator assembles a layered prompt: AGENT.md (role) → existing task titles (from task file frontmatter) → task content or PR review comments → output format instructions. The prompt is passed via stdin. Claude returns structured JSON as its final output — the orchestrator parses this to create task files, git commits, and PRs.
+The orchestrator assembles a layered prompt: AGENT.md (role) → optional `--focus` context (priority section) → existing task titles (from task file frontmatter) → task content or PR review comments → output format instructions. The prompt is passed via stdin. Claude returns structured JSON as its final output — the orchestrator parses this to create task files, git commits, and PRs.
 
 ### Structured output contract
 
@@ -146,12 +146,13 @@ just clean          # rm -rf dist/
 ### CLI commands
 
 ```
-vteam init                  # scaffold vteam/ directory
-vteam run <agent>           # run a specific agent
-vteam status                # show task board overview
-vteam clean                 # prune worktrees, break stale locks
-vteam loop start            # start long-lived scheduler for agents with cron patterns
-vteam loop status           # show agents with cron schedules and next fire times
+vteam init                              # scaffold vteam/ directory
+vteam run <agent>                       # run a specific agent
+vteam run <agent> --focus "..."         # run with priority context injected into the prompt
+vteam status                            # show task board overview
+vteam clean                             # prune worktrees, break stale locks
+vteam loop start                        # start long-lived scheduler for agents with cron patterns
+vteam loop status                       # show agents with cron schedules and next fire times
 ```
 
 `vteam loop start` runs a foreground Node.js process that schedules agents based on `cron` patterns in their frontmatter (parsed via `croner`). Each agent run spawns a subprocess (`vteam run <agent>`). If an agent is still running when its next cron tick fires, the tick is skipped. Logs are appended to `vteam/.logs/<agent>.log`. Stop with Ctrl+C.

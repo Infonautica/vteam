@@ -23,6 +23,7 @@ program
   .command("run")
   .description("Run a specific agent")
   .argument("[agent]", "Agent to run (omit to list available agents)")
+  .option("--focus <text>", "Priority context injected into the agent prompt")
   .action(runCommand);
 
 program
