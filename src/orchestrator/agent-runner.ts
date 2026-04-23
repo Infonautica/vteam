@@ -46,10 +46,10 @@ function formatEvent(event: StreamEvent): string | null {
     if (block.type === "tool_use" && block.name) {
       const input = block.input ?? {};
       const detail = input.command ?? input.pattern ?? input.file_path ?? input.description ?? "";
-      lines.push(`[claude][tool] ${block.name}${detail ? `: ${String(detail).slice(0, 120)}` : ""}`);
+      lines.push(`[claude][tool] ${block.name}${detail ? `: ${String(detail)}` : ""}`);
     }
     if (block.type === "text" && block.text) {
-      lines.push(`[claude][text] ${block.text.slice(0, 200)}`);
+      lines.push(`[claude][text] ${block.text}`);
     }
   }
   return lines.length > 0 ? lines.join("\n") : null;
