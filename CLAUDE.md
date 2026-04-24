@@ -69,6 +69,7 @@ excludePaths: [node_modules/, dist/]
 ```
 
 - `worktree` (default: `false`) — run in an isolated git worktree, push branch on commit
+- `readOnly` (default: `false`) — run in a worktree but skip commit/push/PR (requires `worktree: true`, incompatible with `autoPR: true`). The agent still gets the committer output schema and runs freely in the worktree — `readOnly` only prevents the orchestrator from committing and pushing afterward.
 - `input` (optional, `"task"` or `"pr"`) — `"task"`: pick a task from `todo/` queue, manage task lifecycle; `"pr"`: pick a PR with pending review feedback, check out its branch (requires `worktree: true`)
 - `prFilterLabels` — labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)
 - `prTriggerLabel` — transient label that signals "this PR needs work" (e.g. `vteam:changes-requested`); removed by the orchestrator after the agent pushes

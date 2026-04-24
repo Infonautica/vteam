@@ -73,6 +73,7 @@ function listAgents(cwd: string): void {
       const agent = resolveAgentConfig(name, cwd);
       const flags = [
         agent.worktree ? "worktree" : null,
+        agent.readOnly ? "readOnly" : null,
         agent.input ? `input: ${agent.input}` : null,
         agent.autoPR ? "autoPR" : null,
       ]
@@ -270,7 +271,23 @@ async function runAgent(
     runState.status = "processing";
     writeRunState(cwd, runState);
 
-    if (agent.worktree && worktreePath && branchName) {
+    if (agent.worktree && agent.readOnly && worktreePath) {
+      const output = parseCommitterOutput(result.resultText);
+      memoryUpdate = output.memoryUpdate;
+      runState.claudeOutput = output;
+
+      console.log(`\n${agent.name} finished (readOnly). No commit/push.`);
+
+      if (reviewContext && agent.prTriggerLabel) {
+        removePRLabel(
+          config.platform,
+          reviewContext.pr.number,
+          agent.prTriggerLabel,
+          cwd,
+        );
+        console.log(`Removed label "${agent.prTriggerLabel}" from PR #${reviewContext.pr.number}.`);
+      }
+    } else if (agent.worktree && worktreePath && branchName) {
       const output = parseCommitterOutput(result.resultText);
       memoryUpdate = output.memoryUpdate;
       runState.claudeOutput = output;

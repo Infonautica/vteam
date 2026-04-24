@@ -138,6 +138,56 @@ describe("agentFrontmatterSchema", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("accepts readOnly with worktree", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      readOnly: true,
+      worktree: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects readOnly without worktree", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      readOnly: true,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects readOnly with worktree false", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      readOnly: true,
+      worktree: false,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects readOnly with autoPR", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      readOnly: true,
+      worktree: true,
+      autoPR: true,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts readOnly with input pr", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      readOnly: true,
+      worktree: true,
+      input: "pr",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts readOnly with input task", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      readOnly: true,
+      worktree: true,
+      input: "task",
+    });
+    expect(result.success).toBe(true);
+  });
 });
 
 describe("onFinishFrontmatterSchema", () => {

@@ -44,22 +44,38 @@ export function checkoutWorktree(
     stdio: "pipe",
   });
 
+  if (localBranchExists(repoRoot, remoteBranch)) {
+    execFileSync(
+      "git",
+      ["worktree", "add", worktreePath, remoteBranch],
+      { cwd: repoRoot, stdio: "pipe" },
+    );
+    execFileSync(
+      "git",
+      ["reset", "--hard", `origin/${remoteBranch}`],
+      { cwd: worktreePath, stdio: "pipe" },
+    );
+  } else {
+    execFileSync(
+      "git",
+      ["worktree", "add", "-b", remoteBranch, worktreePath, `origin/${remoteBranch}`],
+      { cwd: repoRoot, stdio: "pipe" },
+    );
+  }
+
+  return { path: worktreePath, branch: remoteBranch };
+}
+
+function localBranchExists(repoRoot: string, branch: string): boolean {
   try {
-    execFileSync("git", ["branch", "-D", remoteBranch], {
+    execFileSync("git", ["rev-parse", "--verify", `refs/heads/${branch}`], {
       cwd: repoRoot,
       stdio: "pipe",
     });
+    return true;
   } catch {
-    // Branch doesn't exist locally — expected path
+    return false;
   }
-
-  execFileSync(
-    "git",
-    ["worktree", "add", "-b", remoteBranch, worktreePath, `origin/${remoteBranch}`],
-    { cwd: repoRoot, stdio: "pipe" },
-  );
-
-  return { path: worktreePath, branch: remoteBranch };
 }
 
 export function removeWorktree(

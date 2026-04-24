@@ -224,6 +224,7 @@ excludePaths: [node_modules/, dist/]
 | ----------------- | ---------- | ---------------------------------------------------------------------------------------------------------------- |
 | `model`           | `"sonnet"` | Claude model (`"sonnet"`, `"opus"`, `"haiku"`)                                                                   |
 | `worktree`        | `false`    | Run in an isolated git worktree; push branch on commit                                                           |
+| `readOnly`        | `false`    | Run in a worktree but skip commit/push/PR (requires `worktree: true`, incompatible with `autoPR`). Agent runs freely — `readOnly` only prevents the orchestrator from committing/pushing afterward. |
 | `input`           | —          | `"task"` to pick from `todo/` queue; `"pr"` to respond to PR review comments (requires `worktree: true`)         |
 | `prFilterLabels`  | —          | Labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)                                                |
 | `prTriggerLabel`  | —          | Transient label signalling "this PR needs work" (e.g. `vteam:changes-requested`); removed after the agent pushes |

@@ -26,6 +26,7 @@ export const agentFrontmatterSchema = z
     scanPaths: z.array(z.string()).optional(),
     excludePaths: z.array(z.string()).optional(),
     worktree: z.boolean().optional(),
+    readOnly: z.boolean().optional(),
     input: z.enum(["task", "pr"]).optional(),
     prFilterLabels: z.array(z.string()).optional(),
     prTriggerLabel: z.string().optional(),
@@ -36,6 +37,12 @@ export const agentFrontmatterSchema = z
   })
   .refine((agent) => agent.input !== "pr" || agent.worktree, {
     message: 'input: "pr" requires worktree: true',
+  })
+  .refine((agent) => !agent.readOnly || agent.worktree, {
+    message: "readOnly: true requires worktree: true",
+  })
+  .refine((agent) => !agent.readOnly || !agent.autoPR, {
+    message: "readOnly: true is incompatible with autoPR: true",
   });
 
 export const onFinishFrontmatterSchema = z.object({

@@ -226,6 +226,15 @@ describe("buildPrompt", () => {
     const { userPrompt } = buildPrompt(agentConfig, tasksDir);
     expect(userPrompt).not.toContain("Priority Focus");
   });
+
+  it("uses committer output schema for readOnly worktree agent", () => {
+    const { agentConfig, tasksDir } = setup();
+    agentConfig.worktree = true;
+    agentConfig.readOnly = true;
+    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+    expect(userPrompt).toContain('"commitMessage"');
+    expect(userPrompt).toContain('"status"');
+  });
 });
 
 describe("buildOnFinishPrompt", () => {

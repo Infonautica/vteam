@@ -46,6 +46,7 @@ export interface AgentConfig {
   scanPaths?: string[];
   excludePaths?: string[];
   worktree?: boolean;
+  readOnly?: boolean;
   input?: "task" | "pr";
   prFilterLabels?: string[];
   prTriggerLabel?: string;
