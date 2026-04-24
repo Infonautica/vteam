@@ -211,6 +211,7 @@ All three must pass before any commit or PR:
 - Locking uses atomic `mkdir` with stale detection (30 min timeout).
 - Task files are local-only and gitignored (`vteam/tasks/`). The real shared artifacts are PRs.
 - All agents return a unified `AgentOutput` JSON. The orchestrator handles all state mutations based on the output fields: creates task files from `content.type: "task"`, commits from `commitMessage` + `filesChanged`, and passes `content` through to ON_FINISH hooks.
+- `src/commands/pipeline.test.ts` is the integration test for the agent → ON_FINISH → MEMORY data flow. When adding new hooks, output fields, or changing how agent output is routed to downstream stages, update this test.
 
 ## Keeping CLAUDE.md and README.md current
 
