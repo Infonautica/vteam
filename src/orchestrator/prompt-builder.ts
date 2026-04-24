@@ -156,24 +156,8 @@ function buildOutputInstruction(agent: AgentConfig): string {
     ? `\n  "memoryUpdate": "optional: brief notes about this run to remember for future runs (patterns noticed, decisions made, areas covered)"`
     : "";
 
-  if (agent.worktree) {
+  if (agent.output === "task") {
     return `## Output Format
-
-After making your changes, output a JSON object as the LAST thing you produce. Do NOT run git add or git commit — the orchestrator handles committing and pushing. Output ONLY valid JSON with no markdown fencing.
-
-{
-  "status": "completed|partial|blocked|failed",
-  "summary": "what you did",
-  "filesChanged": ["path/to/file1.ts"],
-  "commitMessage": {
-    "subject": "vteam: <short subject>",
-    "body": "PR-ready description of the change"
-  },
-  "blockerReason": "only if status is blocked or failed"${memoryNote ? `,${memoryNote}` : ""}
-}`;
-  }
-
-  return `## Output Format
 
 Return your findings as a JSON object. Do NOT write any task files — the orchestrator creates them from your output. Output ONLY valid JSON with no markdown fencing.
 
@@ -189,6 +173,22 @@ Return your findings as a JSON object. Do NOT write any task files — the orche
   ],
   "summary": "one-paragraph summary of what you scanned",
   "areasScanned": ["path1/", "path2/"]${memoryNote ? `,${memoryNote}` : ""}
+}`;
+  }
+
+  return `## Output Format
+
+After making your changes, output a JSON object as the LAST thing you produce. Do NOT run git add or git commit — the orchestrator handles committing and pushing. Output ONLY valid JSON with no markdown fencing.
+
+{
+  "status": "completed|partial|blocked|failed",
+  "summary": "what you did",
+  "filesChanged": ["path/to/file1.ts"],
+  "commitMessage": {
+    "subject": "vteam: <short subject>",
+    "body": "PR-ready description of the change"
+  },
+  "blockerReason": "only if status is blocked or failed"${memoryNote ? `,${memoryNote}` : ""}
 }`;
 }
 

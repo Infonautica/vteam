@@ -235,6 +235,33 @@ describe("buildPrompt", () => {
     expect(userPrompt).toContain('"commitMessage"');
     expect(userPrompt).toContain('"status"');
   });
+
+  it("uses reviewer output schema when output is task", () => {
+    const { agentConfig, tasksDir } = setup();
+    agentConfig.output = "task";
+    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+    expect(userPrompt).toContain('"findings"');
+    expect(userPrompt).toContain('"areasScanned"');
+    expect(userPrompt).not.toContain('"commitMessage"');
+  });
+
+  it("uses committer output schema by default (no output field)", () => {
+    const { agentConfig, tasksDir } = setup();
+    agentConfig.output = undefined;
+    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+    expect(userPrompt).toContain('"commitMessage"');
+    expect(userPrompt).toContain('"status"');
+    expect(userPrompt).not.toContain('"findings"');
+  });
+
+  it("uses reviewer output schema for worktree agent with output task", () => {
+    const { agentConfig, tasksDir } = setup();
+    agentConfig.worktree = true;
+    agentConfig.output = "task";
+    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+    expect(userPrompt).toContain('"findings"');
+    expect(userPrompt).not.toContain('"commitMessage"');
+  });
 });
 
 describe("buildOnFinishPrompt", () => {

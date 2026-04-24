@@ -29,9 +29,11 @@ The orchestrator assembles a layered prompt: AGENT.md (role) → optional `--foc
 
 Claude's text output (extracted from the `result` field of the JSON envelope) must be valid JSON matching one of two schemas:
 
-**Code-reviewer** (no worktree): `{ findings: [{title, severity, description, suggestedFix?, files}], summary, areasScanned, memoryUpdate? }` — the orchestrator creates task files from each finding.
+**Task-producing agents** (`output: "task"`): `{ findings: [{title, severity, description, suggestedFix?, files}], summary, areasScanned, memoryUpdate? }` — the orchestrator creates task files from each finding.
 
-**Worktree agents** (refactorer, review-responder, test-writer): `{ status, summary, filesChanged, commitMessage: {subject, body}, blockerReason?, memoryUpdate? }` — the orchestrator runs `git add -A` + `git commit` using the provided commit message, then pushes and creates PRs.
+**Committer agents** (default, no `output` field): `{ status, summary, filesChanged, commitMessage: {subject, body}, blockerReason?, memoryUpdate? }` — the orchestrator runs `git add -A` + `git commit` using the provided commit message, then pushes and creates PRs.
+
+The `output` frontmatter field controls which schema an agent uses. When `output: "task"` is set, the agent gets the reviewer schema and the orchestrator creates task files from findings. When omitted, the agent gets the committer schema. This is independent of the `worktree` flag — a worktree agent can produce tasks, and a non-worktree agent can use committer output.
 
 The optional `memoryUpdate` field is included in the output format instructions only when the agent has a `MEMORY.md` strategy file. Agents without memory configuration never see this field.
 
@@ -70,6 +72,7 @@ excludePaths: [node_modules/, dist/]
 
 - `worktree` (default: `false`) — run in an isolated git worktree, push branch on commit
 - `readOnly` (default: `false`) — run in a worktree but skip commit/push/PR (requires `worktree: true`, incompatible with `autoPR: true`). The agent still gets the committer output schema and runs freely in the worktree — `readOnly` only prevents the orchestrator from committing and pushing afterward.
+- `output` (optional, `"task"`) — when set, the agent uses the reviewer output schema and the orchestrator creates task files from findings. When omitted, the agent uses the committer output schema. Independent of `worktree`.
 - `input` (optional, `"task"` or `"pr"`) — `"task"`: pick a task from `todo/` queue, manage task lifecycle; `"pr"`: pick a PR with pending review feedback, check out its branch (requires `worktree: true`)
 - `prFilterLabels` — labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)
 - `prTriggerLabel` — transient label that signals "this PR needs work" (e.g. `vteam:changes-requested`); removed by the orchestrator after the agent pushes

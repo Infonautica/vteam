@@ -94,6 +94,28 @@ describe("agentFrontmatterSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts output task", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      output: "task",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid output value", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      output: "invalid",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts output task with worktree", () => {
+    const result = agentFrontmatterSchema.safeParse({
+      output: "task",
+      worktree: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("accepts prFilterLabels with input pr", () => {
     const result = agentFrontmatterSchema.safeParse({
       input: "pr",

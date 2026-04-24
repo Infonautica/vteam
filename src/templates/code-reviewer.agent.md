@@ -1,5 +1,6 @@
 ---
 model: sonnet
+output: task
 scanPaths:
   - src/
 excludePaths:

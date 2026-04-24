@@ -74,6 +74,7 @@ function listAgents(cwd: string): void {
       const flags = [
         agent.worktree ? "worktree" : null,
         agent.readOnly ? "readOnly" : null,
+        agent.output ? `output: ${agent.output}` : null,
         agent.input ? `input: ${agent.input}` : null,
         agent.autoPR ? "autoPR" : null,
       ]
@@ -271,29 +272,47 @@ async function runAgent(
     runState.status = "processing";
     writeRunState(cwd, runState);
 
-    if (agent.worktree && agent.readOnly && worktreePath) {
-      const output = parseCommitterOutput(result.resultText);
+    if (agent.output === "task") {
+      const output = parseReviewerOutput(result.resultText);
       memoryUpdate = output.memoryUpdate;
       runState.claudeOutput = output;
 
-      console.log(`\n${agent.name} finished (readOnly). No commit/push.`);
+      if (output.findings.length > 0) {
+        const todoDir = resolve(tasksDir, "todo");
+        mkdirSync(todoDir, { recursive: true });
+        const created: string[] = [];
 
-      if (reviewContext && agent.prTriggerLabel) {
-        removePRLabel(
-          config.platform,
-          reviewContext.pr.number,
-          agent.prTriggerLabel,
-          cwd,
-        );
-        console.log(`Removed label "${agent.prTriggerLabel}" from PR #${reviewContext.pr.number}.`);
+        for (const finding of output.findings) {
+          const filename = createTaskFile(todoDir, finding, agent.name);
+          created.push(filename);
+          console.log(`Created task: ${finding.title} (${finding.severity})`);
+        }
+
+        runState.tasksCreated = created;
+      } else {
+        console.log("No findings.");
       }
-    } else if (agent.worktree && worktreePath && branchName) {
+    } else {
       const output = parseCommitterOutput(result.resultText);
       memoryUpdate = output.memoryUpdate;
       runState.claudeOutput = output;
       runState.commitMessage = output.commitMessage;
 
-      if ((output.status === "completed" || output.status === "partial") && hasUncommittedChanges(worktreePath)) {
+      if (agent.worktree && agent.readOnly && worktreePath) {
+        console.log(`\n${agent.name} finished (readOnly). No commit/push.`);
+
+        if (reviewContext && agent.prTriggerLabel) {
+          removePRLabel(
+            config.platform,
+            reviewContext.pr.number,
+            agent.prTriggerLabel,
+            cwd,
+          );
+          console.log(`Removed label "${agent.prTriggerLabel}" from PR #${reviewContext.pr.number}.`);
+        }
+      } else if (agent.worktree && worktreePath && branchName &&
+        (output.status === "completed" || output.status === "partial") &&
+        hasUncommittedChanges(worktreePath)) {
         console.log(`\n${agent.name} made changes. Committing...`);
         execFileSync("git", ["add", "-A"], { cwd: worktreePath, stdio: "pipe" });
         execFileSync(
@@ -371,7 +390,7 @@ async function runAgent(
           });
           console.log("Task completed.");
         }
-      } else {
+      } else if (agent.worktree && worktreePath && branchName) {
         console.log(`\n${agent.name} did not produce changes.`);
         if (output.status === "blocked" || output.status === "failed") {
           console.log(`Reason: ${output.blockerReason ?? output.summary}`);
@@ -385,26 +404,6 @@ async function runAgent(
             `Retry count: ${currentRetries + 1}/${config.tasks.maxRetries}`,
           );
         }
-      }
-    } else if (!agent.worktree) {
-      const output = parseReviewerOutput(result.resultText);
-      memoryUpdate = output.memoryUpdate;
-      runState.claudeOutput = output;
-
-      if (output.findings.length > 0) {
-        const todoDir = resolve(tasksDir, "todo");
-        mkdirSync(todoDir, { recursive: true });
-        const created: string[] = [];
-
-        for (const finding of output.findings) {
-          const filename = createTaskFile(todoDir, finding, agent.name);
-          created.push(filename);
-          console.log(`Created task: ${finding.title} (${finding.severity})`);
-        }
-
-        runState.tasksCreated = created;
-      } else {
-        console.log("No findings.");
       }
     }
 
