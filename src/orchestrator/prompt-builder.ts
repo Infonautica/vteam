@@ -118,6 +118,13 @@ export function buildOnFinishPrompt(
     sections.push(`## Commit Message\n\n${outcome.commitMessage.subject}\n\n${outcome.commitMessage.body}`);
   }
 
+  if (outcome.content) {
+    const body = outcome.content.type === "generic"
+      ? outcome.content.body
+      : JSON.stringify(outcome.content.body, null, 2);
+    sections.push(`## Content\n\n${body}`);
+  }
+
   if (outcome.error) {
     sections.push(`## Error\n\n${outcome.error}`);
   }
@@ -153,43 +160,48 @@ export function buildMemoryCurationPrompt(
 
 function buildOutputInstruction(agent: AgentConfig): string {
   const memoryNote = agent.memory
-    ? `\n  "memoryUpdate": "optional: brief notes about this run to remember for future runs (patterns noticed, decisions made, areas covered)"`
+    ? `,\n  "memoryUpdate": "optional: brief notes about this run to remember for future runs (patterns noticed, decisions made, areas covered)"`
     : "";
 
-  if (agent.output === "task") {
-    return `## Output Format
-
-Return your findings as a JSON object. Do NOT write any task files — the orchestrator creates them from your output. Output ONLY valid JSON with no markdown fencing.
-
-{
-  "findings": [
-    {
+  const contentInstruction = agent.output === "task"
+    ? `  "content": {
+    "type": "task",
+    "body": {
       "title": "short descriptive title",
       "severity": "critical|high|medium|low",
       "description": "detailed description of the issue and its impact",
       "suggestedFix": "how to fix it",
       "files": ["file:line"]
     }
-  ],
-  "summary": "one-paragraph summary of what you scanned",
-  "areasScanned": ["path1/", "path2/"]${memoryNote ? `,${memoryNote}` : ""}
-}`;
-  }
+  }`
+    : `  "content": {
+    "type": "generic",
+    "body": "your primary output as a string (analysis, review, report, etc.)"
+  }`;
+
+  const preamble = agent.output === "task"
+    ? "Return your finding as a JSON object. Do NOT write any task files — the orchestrator creates them from your output. Output ONLY valid JSON with no markdown fencing."
+    : "After completing your work, output a JSON object as the LAST thing you produce. Do NOT run git add or git commit — the orchestrator handles committing and pushing. Output ONLY valid JSON with no markdown fencing.";
 
   return `## Output Format
 
-After making your changes, output a JSON object as the LAST thing you produce. Do NOT run git add or git commit — the orchestrator handles committing and pushing. Output ONLY valid JSON with no markdown fencing.
+${preamble}
 
 {
   "status": "completed|partial|blocked|failed",
   "summary": "what you did",
+${contentInstruction},
   "filesChanged": ["path/to/file1.ts"],
   "commitMessage": {
     "subject": "vteam: <short subject>",
     "body": "PR-ready description of the change"
   },
-  "blockerReason": "only if status is blocked or failed"${memoryNote ? `,${memoryNote}` : ""}
-}`;
+  "blockerReason": "only if status is blocked or failed"${memoryNote}
+}
+
+- "content" is optional. Include it when you have a primary deliverable (finding, review, analysis).
+- "filesChanged" and "commitMessage" are optional. Include them only when you modified files.
+- "blockerReason" is optional. Include it only when status is "blocked" or "failed".`;
 }
 
 function buildReviewSection(review: PRReviewContext): string {

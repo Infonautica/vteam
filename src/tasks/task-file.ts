@@ -12,7 +12,7 @@ import { slugify } from "../slugify.js";
 import type {
   TaskFile,
   TaskFrontmatter,
-  ReviewerFinding,
+  TaskContentBody,
   Severity,
 } from "../types.js";
 
@@ -46,7 +46,7 @@ export function generateTaskFilename(title: string): string {
 
 export function createTaskFile(
   dir: string,
-  finding: ReviewerFinding,
+  finding: TaskContentBody,
   foundBy: string,
 ): string {
   const filename = generateTaskFilename(finding.title);

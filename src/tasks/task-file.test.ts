@@ -14,7 +14,7 @@ import {
   isDuplicateTitle,
   severityPriority,
 } from "./task-file.js";
-import type { TaskFile, ReviewerFinding } from "../types.js";
+import type { TaskFile, TaskContentBody } from "../types.js";
 
 let tmp: string;
 
@@ -86,7 +86,7 @@ describe("generateTaskFilename", () => {
 describe("createTaskFile", () => {
   it("creates a markdown file with correct frontmatter and body", () => {
     mkdirSync(resolve(tmp, "todo"), { recursive: true });
-    const finding: ReviewerFinding = {
+    const finding: TaskContentBody = {
       title: "Missing null check",
       severity: "high",
       description: "Token can be null.",
@@ -109,7 +109,7 @@ describe("createTaskFile", () => {
 
   it("omits suggested fix section when not provided", () => {
     mkdirSync(resolve(tmp, "todo"), { recursive: true });
-    const finding: ReviewerFinding = {
+    const finding: TaskContentBody = {
       title: "Dead code",
       severity: "low",
       description: "Unused function.",

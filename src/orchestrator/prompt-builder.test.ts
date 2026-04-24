@@ -227,40 +227,38 @@ describe("buildPrompt", () => {
     expect(userPrompt).not.toContain("Priority Focus");
   });
 
-  it("uses committer output schema for readOnly worktree agent", () => {
+  it("uses unified output schema with status for all agents", () => {
     const { agentConfig, tasksDir } = setup();
     agentConfig.worktree = true;
     agentConfig.readOnly = true;
     const { userPrompt } = buildPrompt(agentConfig, tasksDir);
-    expect(userPrompt).toContain('"commitMessage"');
     expect(userPrompt).toContain('"status"');
+    expect(userPrompt).toContain('"summary"');
   });
 
-  it("uses reviewer output schema when output is task", () => {
+  it("uses task content schema when output is task", () => {
     const { agentConfig, tasksDir } = setup();
     agentConfig.output = "task";
     const { userPrompt } = buildPrompt(agentConfig, tasksDir);
-    expect(userPrompt).toContain('"findings"');
-    expect(userPrompt).toContain('"areasScanned"');
-    expect(userPrompt).not.toContain('"commitMessage"');
+    expect(userPrompt).toContain('"type": "task"');
+    expect(userPrompt).toContain('"severity"');
+    expect(userPrompt).toContain('"title"');
   });
 
-  it("uses committer output schema by default (no output field)", () => {
+  it("uses generic content schema by default (no output field)", () => {
     const { agentConfig, tasksDir } = setup();
     agentConfig.output = undefined;
     const { userPrompt } = buildPrompt(agentConfig, tasksDir);
-    expect(userPrompt).toContain('"commitMessage"');
+    expect(userPrompt).toContain('"type": "generic"');
     expect(userPrompt).toContain('"status"');
-    expect(userPrompt).not.toContain('"findings"');
   });
 
-  it("uses reviewer output schema for worktree agent with output task", () => {
+  it("uses task content schema for worktree agent with output task", () => {
     const { agentConfig, tasksDir } = setup();
     agentConfig.worktree = true;
     agentConfig.output = "task";
     const { userPrompt } = buildPrompt(agentConfig, tasksDir);
-    expect(userPrompt).toContain('"findings"');
-    expect(userPrompt).not.toContain('"commitMessage"');
+    expect(userPrompt).toContain('"type": "task"');
   });
 });
 
@@ -363,5 +361,42 @@ describe("buildOnFinishPrompt", () => {
     expect(userPrompt).not.toContain("## Branch");
     expect(userPrompt).not.toContain("## Error");
     expect(userPrompt).not.toContain("## Reviewed PR");
+    expect(userPrompt).not.toContain("## Content");
+  });
+
+  it("includes generic content when present", () => {
+    const path = setupOnFinish();
+    const outcome: RunOutcome = {
+      agent: "pr-reviewer",
+      status: "completed",
+      startedAt: "2026-04-21T10:00:00Z",
+      completedAt: "2026-04-21T10:05:00Z",
+      content: { type: "generic", body: "## Review\n\nLooks good overall." },
+    };
+    const { userPrompt } = buildOnFinishPrompt({ onFinishMdPath: path }, outcome);
+    expect(userPrompt).toContain("## Content");
+    expect(userPrompt).toContain("Looks good overall");
+  });
+
+  it("includes task content as JSON when present", () => {
+    const path = setupOnFinish();
+    const outcome: RunOutcome = {
+      agent: "code-reviewer",
+      status: "completed",
+      startedAt: "2026-04-21T10:00:00Z",
+      completedAt: "2026-04-21T10:05:00Z",
+      content: {
+        type: "task",
+        body: {
+          title: "Missing null check",
+          severity: "high",
+          description: "Potential NPE",
+          files: ["src/auth.ts:45"],
+        },
+      },
+    };
+    const { userPrompt } = buildOnFinishPrompt({ onFinishMdPath: path }, outcome);
+    expect(userPrompt).toContain("## Content");
+    expect(userPrompt).toContain("Missing null check");
   });
 });

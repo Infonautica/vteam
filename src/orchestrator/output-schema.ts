@@ -1,9 +1,9 @@
 import { z } from "zod";
-import type { ReviewerOutput, CommitterOutput } from "../types.js";
+import type { AgentOutput } from "../types.js";
 
 const severitySchema = z.enum(["critical", "high", "medium", "low"]);
 
-const findingSchema = z.object({
+const taskContentBodySchema = z.object({
   title: z.string().min(1),
   severity: severitySchema,
   description: z.string().min(1),
@@ -11,23 +11,32 @@ const findingSchema = z.object({
   files: z.array(z.string()).min(1),
 });
 
-export const reviewerOutputSchema = z.object({
-  findings: z.array(findingSchema),
-  summary: z.string(),
-  areasScanned: z.array(z.string()),
-  memoryUpdate: z.string().optional(),
+const taskContentSchema = z.object({
+  type: z.literal("task"),
+  body: taskContentBodySchema,
 });
+
+const genericContentSchema = z.object({
+  type: z.literal("generic"),
+  body: z.string(),
+});
+
+const agentContentSchema = z.discriminatedUnion("type", [
+  taskContentSchema,
+  genericContentSchema,
+]);
 
 const commitMessageSchema = z.object({
   subject: z.string().min(1),
   body: z.string(),
 });
 
-export const committerOutputSchema = z.object({
+export const agentOutputSchema = z.object({
   status: z.enum(["completed", "partial", "blocked", "failed"]),
   summary: z.string(),
-  filesChanged: z.array(z.string()),
-  commitMessage: commitMessageSchema,
+  content: agentContentSchema.optional(),
+  filesChanged: z.array(z.string()).optional(),
+  commitMessage: commitMessageSchema.optional(),
   blockerReason: z.string().optional(),
   memoryUpdate: z.string().optional(),
 });
@@ -45,12 +54,7 @@ function extractJson(text: string): string {
   return stripped;
 }
 
-export function parseReviewerOutput(resultText: string): ReviewerOutput {
+export function parseAgentOutput(resultText: string): AgentOutput {
   const json = JSON.parse(extractJson(resultText));
-  return reviewerOutputSchema.parse(json);
-}
-
-export function parseCommitterOutput(resultText: string): CommitterOutput {
-  const json = JSON.parse(extractJson(resultText));
-  return committerOutputSchema.parse(json);
+  return agentOutputSchema.parse(json);
 }

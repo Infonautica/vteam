@@ -71,6 +71,7 @@ export interface RunOutcome {
   reviewedPR?: { number: number; title: string; url: string };
   tasksCreated?: string[];
   commitMessage?: CommitMessage;
+  content?: AgentContent;
 }
 
 export interface ReviewComment {
@@ -103,7 +104,12 @@ export interface VteamConfig {
   };
 }
 
-export interface ReviewerFinding {
+export interface CommitMessage {
+  subject: string;
+  body: string;
+}
+
+export interface TaskContentBody {
   title: string;
   severity: Severity;
   description: string;
@@ -111,23 +117,24 @@ export interface ReviewerFinding {
   files: string[];
 }
 
-export interface ReviewerOutput {
-  findings: ReviewerFinding[];
-  summary: string;
-  areasScanned: string[];
-  memoryUpdate?: string;
+export interface TaskContent {
+  type: "task";
+  body: TaskContentBody;
 }
 
-export interface CommitMessage {
-  subject: string;
+export interface GenericContent {
+  type: "generic";
   body: string;
 }
 
-export interface CommitterOutput {
+export type AgentContent = TaskContent | GenericContent;
+
+export interface AgentOutput {
   status: "completed" | "partial" | "blocked" | "failed";
   summary: string;
-  filesChanged: string[];
-  commitMessage: CommitMessage;
+  content?: AgentContent;
+  filesChanged?: string[];
+  commitMessage?: CommitMessage;
   blockerReason?: string;
   memoryUpdate?: string;
 }
@@ -147,7 +154,7 @@ export interface RunState {
   branchName?: string;
   taskFile?: string;
   error?: string;
-  claudeOutput?: ReviewerOutput | CommitterOutput;
+  claudeOutput?: AgentOutput;
   tasksCreated?: string[];
   commitSha?: string;
   commitMessage?: CommitMessage;

@@ -9,7 +9,7 @@ import { resolve } from "node:path";
 import { acquireLock, type FileLock } from "../memory/lock.js";
 import { buildPrompt, buildOnFinishPrompt, buildMemoryCurationPrompt } from "../orchestrator/prompt-builder.js";
 import { runClaudeAgent } from "../orchestrator/agent-runner.js";
-import { parseReviewerOutput, parseCommitterOutput } from "../orchestrator/output-schema.js";
+import { parseAgentOutput } from "../orchestrator/output-schema.js";
 import { buildTaskIndex } from "../memory/task-index.js";
 import {
   severityPriority,
@@ -272,36 +272,64 @@ async function runAgent(
     runState.status = "processing";
     writeRunState(cwd, runState);
 
-    if (agent.output === "task") {
-      const output = parseReviewerOutput(result.resultText);
-      memoryUpdate = output.memoryUpdate;
-      runState.claudeOutput = output;
+    const output = parseAgentOutput(result.resultText);
+    memoryUpdate = output.memoryUpdate;
+    runState.claudeOutput = output;
+    runState.commitMessage = output.commitMessage;
 
-      if (output.findings.length > 0) {
-        const todoDir = resolve(tasksDir, "todo");
-        mkdirSync(todoDir, { recursive: true });
-        const created: string[] = [];
+    if (output.content?.type === "task") {
+      const todoDir = resolve(tasksDir, "todo");
+      mkdirSync(todoDir, { recursive: true });
+      const filename = createTaskFile(todoDir, output.content.body, agent.name);
+      runState.tasksCreated = [filename];
+      console.log(`Created task: ${output.content.body.title} (${output.content.body.severity})`);
+    }
 
-        for (const finding of output.findings) {
-          const filename = createTaskFile(todoDir, finding, agent.name);
-          created.push(filename);
-          console.log(`Created task: ${finding.title} (${finding.severity})`);
+    if (agent.worktree && agent.readOnly && worktreePath) {
+      console.log(`\n${agent.name} finished (readOnly). No commit/push.`);
+
+      if (reviewContext && agent.prTriggerLabel) {
+        removePRLabel(
+          config.platform,
+          reviewContext.pr.number,
+          agent.prTriggerLabel,
+          cwd,
+        );
+        console.log(`Removed label "${agent.prTriggerLabel}" from PR #${reviewContext.pr.number}.`);
+      }
+    } else if (agent.worktree && worktreePath && branchName &&
+      output.commitMessage &&
+      (output.status === "completed" || output.status === "partial") &&
+      hasUncommittedChanges(worktreePath)) {
+      console.log(`\n${agent.name} made changes. Committing...`);
+      execFileSync("git", ["add", "-A"], { cwd: worktreePath, stdio: "pipe" });
+      execFileSync(
+        "git",
+        ["commit", "-m", output.commitMessage.subject, "-m", output.commitMessage.body],
+        { cwd: worktreePath, stdio: "pipe" },
+      );
+      runState.commitSha = getCommitSha(worktreePath);
+
+      console.log(`Pushing...`);
+      pushBranch(worktreePath, branchName);
+
+      if (reviewContext) {
+        try {
+          postPRComment(
+            config.platform,
+            reviewContext.pr.number,
+            `Addressed review feedback in \`${runState.commitSha.slice(0, 7)}\`.`,
+            cwd,
+          );
+          console.log(`Comment posted on PR #${reviewContext.pr.number}.`);
+        } catch (commentErr) {
+          console.error(
+            "Failed to post PR comment:",
+            commentErr instanceof Error ? commentErr.message : commentErr,
+          );
         }
 
-        runState.tasksCreated = created;
-      } else {
-        console.log("No findings.");
-      }
-    } else {
-      const output = parseCommitterOutput(result.resultText);
-      memoryUpdate = output.memoryUpdate;
-      runState.claudeOutput = output;
-      runState.commitMessage = output.commitMessage;
-
-      if (agent.worktree && agent.readOnly && worktreePath) {
-        console.log(`\n${agent.name} finished (readOnly). No commit/push.`);
-
-        if (reviewContext && agent.prTriggerLabel) {
+        if (agent.prTriggerLabel) {
           removePRLabel(
             config.platform,
             reviewContext.pr.number,
@@ -310,100 +338,59 @@ async function runAgent(
           );
           console.log(`Removed label "${agent.prTriggerLabel}" from PR #${reviewContext.pr.number}.`);
         }
-      } else if (agent.worktree && worktreePath && branchName &&
-        (output.status === "completed" || output.status === "partial") &&
-        hasUncommittedChanges(worktreePath)) {
-        console.log(`\n${agent.name} made changes. Committing...`);
-        execFileSync("git", ["add", "-A"], { cwd: worktreePath, stdio: "pipe" });
-        execFileSync(
-          "git",
-          ["commit", "-m", output.commitMessage.subject, "-m", output.commitMessage.body],
-          { cwd: worktreePath, stdio: "pipe" },
-        );
-        runState.commitSha = getCommitSha(worktreePath);
+      }
 
-        console.log(`Pushing...`);
-        pushBranch(worktreePath, branchName);
-
-        if (reviewContext) {
-          try {
-            postPRComment(
-              config.platform,
-              reviewContext.pr.number,
-              `Addressed review feedback in \`${runState.commitSha.slice(0, 7)}\`.`,
-              cwd,
-            );
-            console.log(`Comment posted on PR #${reviewContext.pr.number}.`);
-          } catch (commentErr) {
-            console.error(
-              "Failed to post PR comment:",
-              commentErr instanceof Error ? commentErr.message : commentErr,
-            );
-          }
-
-          if (agent.prTriggerLabel) {
-            removePRLabel(
-              config.platform,
-              reviewContext.pr.number,
-              agent.prTriggerLabel,
-              cwd,
-            );
-            console.log(`Removed label "${agent.prTriggerLabel}" from PR #${reviewContext.pr.number}.`);
-          }
-        }
-
-        if (agent.autoPR) {
-          console.log("Creating pull request...");
-          try {
-            const prBody = output.commitMessage.body || `Automated by vteam (${agent.name}).${task ? `\n\nTask: ${task.frontmatter.title}` : ""}`;
-            const summary = task?.frontmatter.title || output.commitMessage.subject.replace(/^vteam:\s*/i, "") || "";
-            const prTitle = summary
-              ? `vteam: ${agent.name}: ${summary}`
-              : `vteam: ${agent.name}`;
-            prUrl = createMergeRequest({
-              platform: config.platform,
-              branch: branchName,
-              baseBranch: config.baseBranch,
-              title: prTitle,
-              body: prBody,
-              labels: agent.prCreateLabels,
-              cwd,
-            });
-            console.log(`PR created: ${prUrl}`);
-          } catch (mrErr) {
-            console.error(
-              "PR creation failed:",
-              mrErr instanceof Error ? mrErr.message : mrErr,
-            );
-            console.log("Branch was pushed. Create the PR manually.");
-          }
-        }
-
-        if (task) {
-          const todoDir = resolve(tasksDir, "todo");
-          const doneDir = resolve(tasksDir, "done");
-          moveTask(todoDir, doneDir, task.filename, {
-            status: "done",
-            completed: new Date().toISOString(),
+      if (agent.autoPR) {
+        console.log("Creating pull request...");
+        try {
+          const prBody = output.commitMessage.body || `Automated by vteam (${agent.name}).${task ? `\n\nTask: ${task.frontmatter.title}` : ""}`;
+          const summary = task?.frontmatter.title || output.commitMessage.subject.replace(/^vteam:\s*/i, "") || "";
+          const prTitle = summary
+            ? `vteam: ${agent.name}: ${summary}`
+            : `vteam: ${agent.name}`;
+          prUrl = createMergeRequest({
+            platform: config.platform,
             branch: branchName,
-            ...(prUrl ? { "pr-url": prUrl } : {}),
+            baseBranch: config.baseBranch,
+            title: prTitle,
+            body: prBody,
+            labels: agent.prCreateLabels,
+            cwd,
           });
-          console.log("Task completed.");
-        }
-      } else if (agent.worktree && worktreePath && branchName) {
-        console.log(`\n${agent.name} did not produce changes.`);
-        if (output.status === "blocked" || output.status === "failed") {
-          console.log(`Reason: ${output.blockerReason ?? output.summary}`);
-        }
-        if (task) {
-          const currentRetries = task.frontmatter["retry-count"] ?? 0;
-          updateTaskFrontmatter(task.path, {
-            "retry-count": currentRetries + 1,
-          });
-          console.log(
-            `Retry count: ${currentRetries + 1}/${config.tasks.maxRetries}`,
+          console.log(`PR created: ${prUrl}`);
+        } catch (mrErr) {
+          console.error(
+            "PR creation failed:",
+            mrErr instanceof Error ? mrErr.message : mrErr,
           );
+          console.log("Branch was pushed. Create the PR manually.");
         }
+      }
+
+      if (task) {
+        const todoDir = resolve(tasksDir, "todo");
+        const doneDir = resolve(tasksDir, "done");
+        moveTask(todoDir, doneDir, task.filename, {
+          status: "done",
+          completed: new Date().toISOString(),
+          branch: branchName,
+          ...(prUrl ? { "pr-url": prUrl } : {}),
+        });
+        console.log("Task completed.");
+      }
+    } else if (agent.worktree && worktreePath && branchName) {
+      console.log(`\n${agent.name} did not produce changes.`);
+      if (output.status === "blocked" || output.status === "failed") {
+        console.log(`Reason: ${output.blockerReason ?? output.summary}`);
+      }
+      if (task) {
+        const currentRetries = task.frontmatter["retry-count"] ?? 0;
+        updateTaskFrontmatter(task.path, {
+          "retry-count": currentRetries + 1,
+        });
+        console.log(
+          `Retry count: ${currentRetries + 1}/${config.tasks.maxRetries}`,
+        );
       }
     }
 
@@ -426,6 +413,7 @@ async function runAgent(
       reviewedPR: reviewContext ? { number: reviewContext.pr.number, title: reviewContext.pr.title, url: reviewContext.pr.url } : undefined,
       tasksCreated: runState.tasksCreated,
       commitMessage: runState.commitMessage,
+      content: output.content,
     };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
