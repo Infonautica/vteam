@@ -27,17 +27,22 @@ The orchestrator assembles a layered prompt: AGENT.md (role) → optional `--foc
 
 ### Structured output contract
 
-Claude's text output (extracted from the `result` field of the JSON envelope) must be valid JSON matching one of two schemas:
+Claude's text output (extracted from the `result` field of the JSON envelope) must be valid JSON matching a single unified `AgentOutput` schema:
 
-**Task-producing agents** (`output: "task"`): `{ findings: [{title, severity, description, suggestedFix?, files}], summary, areasScanned, memoryUpdate? }` — the orchestrator creates task files from each finding.
+```
+{ status, summary, content?, filesChanged?, commitMessage?, blockerReason?, memoryUpdate? }
+```
 
-**Committer agents** (default, no `output` field): `{ status, summary, filesChanged, commitMessage: {subject, body}, blockerReason?, memoryUpdate? }` — the orchestrator runs `git add -A` + `git commit` using the provided commit message, then pushes and creates PRs.
+All fields except `status` and `summary` are optional. The `content` field is a discriminated union controlled by the `output` frontmatter field:
 
-The `output` frontmatter field controls which schema an agent uses. When `output: "task"` is set, the agent gets the reviewer schema and the orchestrator creates task files from findings. When omitted, the agent gets the committer schema. This is independent of the `worktree` flag — a worktree agent can produce tasks, and a non-worktree agent can use committer output.
+- **`output: "task"`** → `content: { type: "task", body: { title, severity, description, suggestedFix?, files } }` — the orchestrator creates a task file from the finding.
+- **Default (no `output` field)** → `content: { type: "generic", body: "string" }` — a freeform deliverable (review, analysis, report). The orchestrator passes it through to the ON_FINISH hook via `RunOutcome.content`.
+
+The `filesChanged` and `commitMessage` fields are present only when the agent modified files. The orchestrator commits when `commitMessage` is present and `readOnly` is false.
 
 The optional `memoryUpdate` field is included in the output format instructions only when the agent has a `MEMORY.md` strategy file. Agents without memory configuration never see this field.
 
-The output format instructions are injected into every agent's user prompt by the prompt builder (`buildOutputInstruction`). The orchestrator validates the output via zod schemas in `orchestrator/output-schema.ts`. Markdown fences are stripped before parsing as a fallback.
+The output format instructions are injected into every agent's user prompt by the prompt builder (`buildOutputInstruction`). The orchestrator validates the output via a single zod schema (`agentOutputSchema`) in `orchestrator/output-schema.ts`. Markdown fences are stripped before parsing as a fallback.
 
 ### Memory management
 
@@ -71,8 +76,8 @@ excludePaths: [node_modules/, dist/]
 ```
 
 - `worktree` (default: `false`) — run in an isolated git worktree, push branch on commit
-- `readOnly` (default: `false`) — run in a worktree but skip commit/push/PR (requires `worktree: true`, incompatible with `autoPR: true`). The agent still gets the committer output schema and runs freely in the worktree — `readOnly` only prevents the orchestrator from committing and pushing afterward.
-- `output` (optional, `"task"`) — when set, the agent uses the reviewer output schema and the orchestrator creates task files from findings. When omitted, the agent uses the committer output schema. Independent of `worktree`.
+- `readOnly` (default: `false`) — run in a worktree but skip commit/push/PR (requires `worktree: true`, incompatible with `autoPR: true`). The agent runs freely in the worktree — `readOnly` only prevents the orchestrator from committing and pushing afterward.
+- `output` (optional, `"task"`) — controls the `content` type in the unified `AgentOutput` schema. When `"task"`, the prompt instructs Claude to return `content: { type: "task", body: { title, severity, ... } }` and the orchestrator creates a task file. When omitted, the prompt instructs `content: { type: "generic", body: "string" }`. Independent of `worktree`.
 - `input` (optional, `"task"` or `"pr"`) — `"task"`: pick a task from `todo/` queue, manage task lifecycle; `"pr"`: pick a PR with pending review feedback, check out its branch (requires `worktree: true`)
 - `prFilterLabels` — labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)
 - `prTriggerLabel` — transient label that signals "this PR needs work" (e.g. `vteam:changes-requested`); removed by the orchestrator after the agent pushes
@@ -88,7 +93,7 @@ The frontmatter is validated via zod on agent load. The markdown body (after fro
 
 ### On-finish hooks
 
-An agent can optionally have an `ON_FINISH.md` file at `vteam/agents/<name>/ON_FINISH.md`. When present, the orchestrator spawns a second `claude -p` call after the agent run completes (both success and failure). The hook receives a structured summary of the run outcome (status, branch, PR URL, task info, error) as its user prompt.
+An agent can optionally have an `ON_FINISH.md` file at `vteam/agents/<name>/ON_FINISH.md`. When present, the orchestrator spawns a second `claude -p` call after the agent run completes (both success and failure). The hook receives a structured summary of the run outcome (status, branch, PR URL, task info, content, error) as its user prompt. When the agent returned `content` in its output, the hook receives it in a `## Content` section — generic content as a string, task content as JSON. This allows hooks to act on the agent's primary deliverable (e.g. post a PR review as a comment).
 
 The ON_FINISH.md uses YAML frontmatter for its own configuration:
 
@@ -138,7 +143,7 @@ src/
 │   └── load.ts                   Reads and validates vteam.config.json
 ├── orchestrator/
 │   ├── agent-runner.ts           Spawns claude -p, captures structured JSON output
-│   ├── output-schema.ts          Zod schemas for Claude's structured output (reviewer/committer)
+│   ├── output-schema.ts          Zod schema for Claude's unified AgentOutput (discriminated content union)
 │   └── prompt-builder.ts         Assembles layered prompts + output format instructions
 ├── memory/
 │   ├── task-index.ts             Scans task dirs, builds title list for dedup
@@ -205,7 +210,7 @@ All three must pass before any commit or PR:
 - Task frontmatter uses YAML via `gray-matter`.
 - Locking uses atomic `mkdir` with stale detection (30 min timeout).
 - Task files are local-only and gitignored (`vteam/tasks/`). The real shared artifacts are PRs.
-- Claude produces structured JSON output; the orchestrator handles all state mutations (task file creation, git commits, pushing, PR creation, moving task files). Agents without `worktree` (e.g. code-reviewer) return findings as JSON — the orchestrator creates task files. Agents with `worktree` (e.g. refactorer, review-responder, test-writer) edit files and return a commit message — the orchestrator commits, pushes, and creates PRs.
+- All agents return a unified `AgentOutput` JSON. The orchestrator handles all state mutations based on the output fields: creates task files from `content.type: "task"`, commits from `commitMessage` + `filesChanged`, and passes `content` through to ON_FINISH hooks.
 
 ## Keeping CLAUDE.md and README.md current
 

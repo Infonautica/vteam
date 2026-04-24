@@ -225,7 +225,7 @@ excludePaths: [node_modules/, dist/]
 | `model`           | `"sonnet"` | Claude model (`"sonnet"`, `"opus"`, `"haiku"`)                                                                   |
 | `worktree`        | `false`    | Run in an isolated git worktree; push branch on commit                                                           |
 | `readOnly`        | `false`    | Run in a worktree but skip commit/push/PR (requires `worktree: true`, incompatible with `autoPR`). Agent runs freely — `readOnly` only prevents the orchestrator from committing/pushing afterward. |
-| `output`          | —          | `"task"` to produce findings that the orchestrator creates as task files. When omitted, the agent uses committer output (status + commit message). |
+| `output`          | —          | `"task"` to produce findings that the orchestrator creates as task files. When omitted, the agent uses generic content output. All agents share a unified output schema — `output` controls only the `content` field type. |
 | `input`           | —          | `"task"` to pick from `todo/` queue; `"pr"` to respond to PR review comments (requires `worktree: true`)         |
 | `prFilterLabels`  | —          | Labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)                                                |
 | `prTriggerLabel`  | —          | Transient label signalling "this PR needs work" (e.g. `vteam:changes-requested`); removed after the agent pushes |
@@ -252,7 +252,7 @@ You are a notification bot. Post the run result to the #eng-prs Slack channel.
 If the run failed, also ping @oncall.
 ```
 
-The user prompt is auto-generated from the run outcome and includes: agent name, status (completed/failed), timestamps, task details, branch name, PR URL, reviewed PR info, and error message (if any).
+The user prompt is auto-generated from the run outcome and includes: agent name, status (completed/failed), timestamps, task details, branch name, PR URL, reviewed PR info, agent content output (review text, analysis, etc.), and error message (if any). When the agent returns `content` in its output, the hook receives it in a `## Content` section — this allows hooks to act on the agent's primary deliverable (e.g. post a PR review as a GitHub comment).
 
 | Field             | Default | Description                        |
 | ----------------- | ------- | ---------------------------------- |
@@ -392,7 +392,7 @@ vteam ships with four default agents (code-reviewer, refactorer, review-responde
 - Does not modify source code — only adds or updates test files
 - Does not commit or push — the orchestrator handles all git operations
 
-All agents return structured JSON output. The orchestrator validates it, creates task files or git commits, and manages the full lifecycle. All agents receive existing task titles in their prompt, giving them full context of past and present work.
+All agents return a unified JSON output (`AgentOutput`). The orchestrator validates it, creates task files from `content` when type is `"task"`, commits from `commitMessage` when present, and passes `content` through to ON_FINISH hooks. All agents receive existing task titles in their prompt, giving them full context of past and present work.
 
 ## Caveats and known limitations
 
