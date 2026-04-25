@@ -17,6 +17,8 @@ export function createWorktree(
   const branch = `vteam/${slugify(taskSlug)}`;
   const worktreePath = resolve(repoRoot, worktreeDir, branch);
 
+  ensureCleanWorktreePath(repoRoot, worktreePath);
+
   try {
     execFileSync("git", ["branch", "-D", branch], { cwd: repoRoot, stdio: "pipe" });
   } catch {
@@ -38,6 +40,8 @@ export function checkoutWorktree(
   worktreeDir: string,
 ): WorktreeSession {
   const worktreePath = resolve(repoRoot, worktreeDir, remoteBranch);
+
+  ensureCleanWorktreePath(repoRoot, worktreePath);
 
   execFileSync("git", ["fetch", "origin", remoteBranch], {
     cwd: repoRoot,
@@ -64,6 +68,22 @@ export function checkoutWorktree(
   }
 
   return { path: worktreePath, branch: remoteBranch };
+}
+
+function ensureCleanWorktreePath(repoRoot: string, worktreePath: string): void {
+  try {
+    execFileSync("git", ["worktree", "remove", "--force", worktreePath], {
+      cwd: repoRoot,
+      stdio: "pipe",
+    });
+    return;
+  } catch {
+    // git worktree remove failed — either nothing exists, or stale state
+  }
+  if (existsSync(worktreePath)) {
+    rmSync(worktreePath, { recursive: true, force: true });
+  }
+  execSync("git worktree prune", { cwd: repoRoot, stdio: "pipe" });
 }
 
 function localBranchExists(repoRoot: string, branch: string): boolean {
