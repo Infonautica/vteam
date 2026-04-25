@@ -42,7 +42,7 @@ export const agentOutputSchema = z.object({
 });
 
 function stripMarkdownFences(text: string): string {
-  const fenced = text.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
+  const fenced = text.match(/```(?:json)?\s*\n?([\s\S]*)```/);
   if (fenced) return fenced[1].trim();
   return text.trim();
 }

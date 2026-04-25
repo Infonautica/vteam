@@ -204,6 +204,30 @@ describe("parseAgentOutput", () => {
       expect(output.status).toBe("completed");
     });
 
+    it("handles triple backticks inside JSON string values", () => {
+      const json = JSON.stringify({
+        status: "completed",
+        summary: "Found issue.",
+        content: {
+          type: "task",
+          body: {
+            title: "SQL bug",
+            severity: "high",
+            description: "Broken query",
+            suggestedFix:
+              "Use LEFT JOIN:\n\n```sql\nSELECT * FROM foo\n```\n\nApply to all files.",
+            files: ["src/repo.ts:42"],
+          },
+        },
+      });
+      const output = parseAgentOutput("```json\n" + json + "\n```");
+      expect(output.content?.type).toBe("task");
+      const body =
+        output.content?.type === "task" ? output.content.body : null;
+      expect(body?.suggestedFix).toContain("```sql");
+      expect(body?.title).toBe("SQL bug");
+    });
+
     it("extracts JSON from text with leading prose", () => {
       const json = JSON.stringify({
         status: "completed",
