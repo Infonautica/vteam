@@ -8,6 +8,9 @@ export function resolveAgentConfig(
   name: string,
   cwd: string,
 ): AgentConfig {
+  if (name.includes("..") || name.includes("/") || name.includes("\\")) {
+    throw new Error(`Invalid agent name: "${name}"`);
+  }
   const agentDir = resolve(cwd, "vteam", "agents", name);
   const agentMdPath = resolve(agentDir, "AGENT.md");
 
