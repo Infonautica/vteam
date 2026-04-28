@@ -174,14 +174,10 @@ async function runAgent(
         return;
       }
       const comments = getReviewComments(config.platform, pr.number, cwd);
-      if (comments.length === 0) {
-        console.log(`PR #${pr.number} has no actionable comments. Skipping.`);
-        return;
-      }
       const repoSlug = getRepoSlug(config.platform, cwd);
       reviewContext = { pr, comments, repoSlug };
       console.log(
-        `Responding to PR #${pr.number}: ${pr.title} (${comments.length} comments)`,
+        `Picked PR #${pr.number}: ${pr.title}${comments.length > 0 ? ` (${comments.length} comments)` : ""}`,
       );
     }
 

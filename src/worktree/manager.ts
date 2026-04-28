@@ -48,24 +48,11 @@ export function checkoutWorktree(
     stdio: "pipe",
   });
 
-  if (localBranchExists(repoRoot, remoteBranch)) {
-    execFileSync(
-      "git",
-      ["worktree", "add", worktreePath, remoteBranch],
-      { cwd: repoRoot, stdio: "pipe" },
-    );
-    execFileSync(
-      "git",
-      ["reset", "--hard", `origin/${remoteBranch}`],
-      { cwd: worktreePath, stdio: "pipe" },
-    );
-  } else {
-    execFileSync(
-      "git",
-      ["worktree", "add", "-b", remoteBranch, worktreePath, `origin/${remoteBranch}`],
-      { cwd: repoRoot, stdio: "pipe" },
-    );
-  }
+  execFileSync(
+    "git",
+    ["worktree", "add", "--detach", worktreePath, `origin/${remoteBranch}`],
+    { cwd: repoRoot, stdio: "pipe" },
+  );
 
   return { path: worktreePath, branch: remoteBranch };
 }
@@ -84,18 +71,6 @@ function ensureCleanWorktreePath(repoRoot: string, worktreePath: string): void {
     rmSync(worktreePath, { recursive: true, force: true });
   }
   execSync("git worktree prune", { cwd: repoRoot, stdio: "pipe" });
-}
-
-function localBranchExists(repoRoot: string, branch: string): boolean {
-  try {
-    execFileSync("git", ["rev-parse", "--verify", `refs/heads/${branch}`], {
-      cwd: repoRoot,
-      stdio: "pipe",
-    });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 export function removeWorktree(
@@ -158,7 +133,7 @@ export function pushBranch(
   worktreePath: string,
   branch: string,
 ): void {
-  execFileSync("git", ["push", "--force", "origin", branch], {
+  execFileSync("git", ["push", "--force", "origin", `HEAD:${branch}`], {
     cwd: worktreePath,
     stdio: "pipe",
   });

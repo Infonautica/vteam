@@ -152,6 +152,22 @@ describe("checkoutWorktree", () => {
     expect(wt2.branch).toBe("feature-branch");
   });
 
+  it("succeeds when branch is already checked out in another worktree", () => {
+    execFileSync("git", ["-C", local, "fetch", "origin", "feature-branch"], { stdio: "pipe" });
+    execFileSync(
+      "git",
+      ["-C", local, "worktree", "add", resolve(local, "dev-worktree"), "origin/feature-branch", "-b", "feature-branch"],
+      { stdio: "pipe" },
+    );
+
+    const wt = checkoutWorktree(local, "feature-branch", WT_DIR);
+    expect(existsSync(wt.path)).toBe(true);
+    expect(wt.branch).toBe("feature-branch");
+    expect(existsSync(resolve(wt.path, "feature.txt"))).toBe(true);
+
+    execFileSync("git", ["-C", local, "worktree", "remove", "--force", resolve(local, "dev-worktree")], { stdio: "pipe" });
+  });
+
   it("resets to latest remote state when local branch exists", () => {
     execFileSync("git", ["-C", local, "fetch", "origin", "feature-branch"], { stdio: "pipe" });
     execFileSync(

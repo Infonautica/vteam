@@ -214,23 +214,28 @@ function buildReviewSection(review: PRReviewContext): string {
     `URL: ${review.pr.url}`,
     `Branch: ${review.pr.branch}`,
     "",
-    `## Review Comments`,
-    "",
-    "Address each of the following review comments:",
-    "",
   ];
 
-  for (const comment of review.comments) {
-    if (comment.path) {
-      lines.push(
-        `### ${comment.author} on \`${comment.path}${comment.line ? `:${comment.line}` : ""}\``,
-      );
-    } else {
-      lines.push(`### ${comment.author}`);
+  if (review.comments.length > 0) {
+    lines.push(
+      `## Review Comments`,
+      "",
+      "Address each of the following review comments:",
+      "",
+    );
+
+    for (const comment of review.comments) {
+      if (comment.path) {
+        lines.push(
+          `### ${comment.author} on \`${comment.path}${comment.line ? `:${comment.line}` : ""}\``,
+        );
+      } else {
+        lines.push(`### ${comment.author}`);
+      }
+      lines.push("");
+      lines.push(comment.body);
+      lines.push("");
     }
-    lines.push("");
-    lines.push(comment.body);
-    lines.push("");
   }
 
   return lines.join("\n");

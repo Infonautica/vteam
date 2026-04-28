@@ -209,6 +209,26 @@ describe("buildPrompt", () => {
     expect(userPrompt).toContain("Test coverage");
   });
 
+  it("includes PR info but omits comments section when review has no comments", async () => {
+    const { agentConfig, taskManager } = setup();
+    const review: PRReviewContext = {
+      pr: {
+        number: 42,
+        title: "vteam: Fix null check in auth",
+        branch: "vteam/fix-null-check",
+        url: "https://github.com/org/repo/pull/42",
+      },
+      repoSlug: "org/repo",
+      comments: [],
+    };
+
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager, undefined, review);
+    expect(userPrompt).toContain("Pull Request");
+    expect(userPrompt).toContain("#42");
+    expect(userPrompt).toContain("org/repo");
+    expect(userPrompt).not.toContain("Review Comments");
+  });
+
   it("omits review section when no review provided", async () => {
     const { agentConfig, taskManager } = setup();
     const { userPrompt } = await buildPrompt(agentConfig, taskManager);
