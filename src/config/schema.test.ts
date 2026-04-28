@@ -35,6 +35,41 @@ describe("vteamConfigSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("defaults taskManager to filesystem when omitted", () => {
+    const result = vteamConfigSchema.safeParse(validConfig);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.taskManager).toEqual({ provider: "filesystem" });
+    }
+  });
+
+  it("accepts explicit filesystem taskManager", () => {
+    const result = vteamConfigSchema.safeParse({
+      ...validConfig,
+      taskManager: { provider: "filesystem" },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.taskManager.provider).toBe("filesystem");
+    }
+  });
+
+  it("rejects unknown taskManager provider", () => {
+    const result = vteamConfigSchema.safeParse({
+      ...validConfig,
+      taskManager: { provider: "jira" },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects taskManager without provider", () => {
+    const result = vteamConfigSchema.safeParse({
+      ...validConfig,
+      taskManager: {},
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("agentFrontmatterSchema", () => {

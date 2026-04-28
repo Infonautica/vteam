@@ -1,12 +1,9 @@
 import { resolve } from "node:path";
 import { listTaskFiles } from "../tasks/task-file.js";
+import type { TaskIndex } from "../tasks/task-manager.js";
 import type { TaskFile, TaskStatus } from "../types.js";
 
-export interface TaskIndex {
-  all: TaskFile[];
-  byStatus: Map<TaskStatus, TaskFile[]>;
-  titles: string[];
-}
+export type { TaskIndex };
 
 export function buildTaskIndex(tasksDir: string): TaskIndex {
   const statuses: TaskStatus[] = ["todo", "done"];

@@ -193,16 +193,20 @@ Global settings live in `vteam/vteam.config.json`:
   "worktreeDir": ".vteam-worktrees",
   "tasks": {
     "maxRetries": 3
+  },
+  "taskManager": {
+    "provider": "filesystem"
   }
 }
 ```
 
-| Field              | Description                                                                             |
-| ------------------ | --------------------------------------------------------------------------------------- |
-| `baseBranch`       | Branch to create worktrees from and target PRs against                                  |
-| `platform`         | `"github"` or `"gitlab"` — determines which CLI (`gh` / `glab`) is used for PR creation |
-| `worktreeDir`      | Where worktrees are created (relative to repo root). Gitignored.                        |
-| `tasks.maxRetries` | How many times the refactorer retries a failing task before skipping it                 |
+| Field                  | Description                                                                             |
+| ---------------------- | --------------------------------------------------------------------------------------- |
+| `baseBranch`           | Branch to create worktrees from and target PRs against                                  |
+| `platform`             | `"github"` or `"gitlab"` — determines which CLI (`gh` / `glab`) is used for PR creation |
+| `worktreeDir`          | Where worktrees are created (relative to repo root). Gitignored.                        |
+| `tasks.maxRetries`     | How many times the refactorer retries a failing task before skipping it                 |
+| `taskManager.provider` | Task storage backend. Currently only `"filesystem"` (the default). Omit the field entirely to use the default. |
 
 ### Agent configuration (AGENT.md frontmatter)
 

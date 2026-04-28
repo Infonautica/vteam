@@ -5,6 +5,8 @@ import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
 import { stringify } from "../frontmatter.js";
 import { buildPrompt, buildOnFinishPrompt } from "./prompt-builder.js";
+import { FilesystemTaskManager } from "../tasks/filesystem-manager.js";
+import type { TaskManager } from "../tasks/task-manager.js";
 import type { AgentConfig, TaskFile, TaskFrontmatter, PRReviewContext, RunOutcome } from "../types.js";
 
 let tmp: string;
@@ -36,11 +38,12 @@ function writeTask(
   writeFileSync(resolve(tasksDir, status, filename), content, "utf-8");
 }
 
-function setup(): { agentConfig: AgentConfig; tasksDir: string } {
+function setup(): { agentConfig: AgentConfig; taskManager: TaskManager; tasksDir: string } {
   const agentMdPath = resolve(tmp, "AGENT.md");
   writeFileSync(agentMdPath, "---\nmodel: sonnet\nworktree: true\n---\n\n# Test Agent\n\nYou are a test agent.", "utf-8");
 
   const tasksDir = createTasksDir();
+  const taskManager = new FilesystemTaskManager(tasksDir);
 
   return {
     agentConfig: {
@@ -50,19 +53,20 @@ function setup(): { agentConfig: AgentConfig; tasksDir: string } {
       scanPaths: ["src/", "lib/"],
       excludePaths: ["node_modules/"],
     },
+    taskManager,
     tasksDir,
   };
 }
 
 describe("buildPrompt", () => {
-  it("includes agent md content as system prompt", () => {
-    const { agentConfig, tasksDir } = setup();
-    const { systemPrompt } = buildPrompt(agentConfig, tasksDir);
+  it("includes agent md content as system prompt", async () => {
+    const { agentConfig, taskManager } = setup();
+    const { systemPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(systemPrompt).toContain("You are a test agent");
   });
 
-  it("includes existing task titles in user prompt", () => {
-    const { agentConfig, tasksDir } = setup();
+  it("includes existing task titles in user prompt", async () => {
+    const { agentConfig, taskManager, tasksDir } = setup();
     writeTask(tasksDir, "todo", "task-a.md", {
       title: "Null check missing",
       created: "2026-04-19",
@@ -72,40 +76,41 @@ describe("buildPrompt", () => {
       files: ["src/auth.ts:45"],
     }, "## Description\n\nSome bug.");
 
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).toContain("Null check missing");
     expect(userPrompt).toContain("Existing Tasks");
   });
 
-  it("omits existing tasks section when no tasks exist", () => {
-    const { agentConfig, tasksDir } = setup();
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+  it("omits existing tasks section when no tasks exist", async () => {
+    const { agentConfig, taskManager } = setup();
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).not.toContain("Existing Tasks");
   });
 
-  it("includes scan paths in user prompt", () => {
-    const { agentConfig, tasksDir } = setup();
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+  it("includes scan paths in user prompt", async () => {
+    const { agentConfig, taskManager } = setup();
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).toContain("src/, lib/");
   });
 
-  it("includes exclude paths in user prompt", () => {
-    const { agentConfig, tasksDir } = setup();
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+  it("includes exclude paths in user prompt", async () => {
+    const { agentConfig, taskManager } = setup();
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).toContain("node_modules/");
   });
 
-  it("omits scope section when no scan paths configured", () => {
-    const { agentConfig, tasksDir } = setup();
+  it("omits scope section when no scan paths configured", async () => {
+    const { agentConfig, taskManager } = setup();
     agentConfig.scanPaths = undefined;
     agentConfig.excludePaths = undefined;
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).not.toContain("## Scope");
   });
 
-  it("includes task details when task provided", () => {
-    const { agentConfig, tasksDir } = setup();
+  it("includes task details when task provided", async () => {
+    const { agentConfig, taskManager } = setup();
     const task: TaskFile = {
+      id: "task.md",
       filename: "task.md",
       path: "/tasks/todo/task.md",
       frontmatter: {
@@ -119,7 +124,7 @@ describe("buildPrompt", () => {
       body: "## Description\n\nThe auth module is broken.",
     };
 
-    const { systemPrompt, userPrompt } = buildPrompt(agentConfig, tasksDir, task);
+    const { systemPrompt, userPrompt } = await buildPrompt(agentConfig, taskManager, task);
     expect(systemPrompt).toContain("You are a test agent");
     expect(userPrompt).toContain("Fix null check");
     expect(userPrompt).toContain("high");
@@ -127,22 +132,22 @@ describe("buildPrompt", () => {
     expect(userPrompt).toContain("auth module is broken");
   });
 
-  it("excludes frontmatter from system prompt", () => {
-    const { agentConfig, tasksDir } = setup();
-    const { systemPrompt } = buildPrompt(agentConfig, tasksDir);
+  it("excludes frontmatter from system prompt", async () => {
+    const { agentConfig, taskManager } = setup();
+    const { systemPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(systemPrompt).not.toContain("model:");
     expect(systemPrompt).not.toContain("worktree:");
     expect(systemPrompt).not.toContain("---");
   });
 
-  it("omits task section when no task provided", () => {
-    const { agentConfig, tasksDir } = setup();
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+  it("omits task section when no task provided", async () => {
+    const { agentConfig, taskManager } = setup();
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).not.toContain("## Your Task");
   });
 
-  it("shows tasks from all status directories", () => {
-    const { agentConfig, tasksDir } = setup();
+  it("shows tasks from all status directories", async () => {
+    const { agentConfig, taskManager, tasksDir } = setup();
     writeTask(tasksDir, "todo", "a.md", {
       title: "Todo task",
       created: "2026-04-19",
@@ -160,13 +165,13 @@ describe("buildPrompt", () => {
       files: ["b.ts"],
     }, "");
 
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).toContain("Todo task");
     expect(userPrompt).toContain("Done task");
   });
 
-  it("includes review context when provided", () => {
-    const { agentConfig, tasksDir } = setup();
+  it("includes review context when provided", async () => {
+    const { agentConfig, taskManager } = setup();
     const review: PRReviewContext = {
       pr: {
         number: 42,
@@ -191,7 +196,7 @@ describe("buildPrompt", () => {
       ],
     };
 
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir, undefined, review);
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager, undefined, review);
     expect(userPrompt).toContain("Pull Request");
     expect(userPrompt).toContain("#42");
     expect(userPrompt).toContain("org/repo");
@@ -204,16 +209,16 @@ describe("buildPrompt", () => {
     expect(userPrompt).toContain("Test coverage");
   });
 
-  it("omits review section when no review provided", () => {
-    const { agentConfig, tasksDir } = setup();
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+  it("omits review section when no review provided", async () => {
+    const { agentConfig, taskManager } = setup();
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).not.toContain("Pull Request");
     expect(userPrompt).not.toContain("Review Comments");
   });
 
-  it("includes focus as first section in user prompt", () => {
-    const { agentConfig, tasksDir } = setup();
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir, undefined, undefined, "the invite user functionality");
+  it("includes focus as first section in user prompt", async () => {
+    const { agentConfig, taskManager } = setup();
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager, undefined, undefined, "the invite user functionality");
     expect(userPrompt).toContain("## Priority Focus");
     expect(userPrompt).toContain("the invite user functionality");
     const focusIndex = userPrompt.indexOf("## Priority Focus");
@@ -221,43 +226,43 @@ describe("buildPrompt", () => {
     expect(focusIndex).toBeLessThan(scopeIndex);
   });
 
-  it("omits focus section when not provided", () => {
-    const { agentConfig, tasksDir } = setup();
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+  it("omits focus section when not provided", async () => {
+    const { agentConfig, taskManager } = setup();
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).not.toContain("Priority Focus");
   });
 
-  it("uses unified output schema with status for all agents", () => {
-    const { agentConfig, tasksDir } = setup();
+  it("uses unified output schema with status for all agents", async () => {
+    const { agentConfig, taskManager } = setup();
     agentConfig.worktree = true;
     agentConfig.readOnly = true;
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).toContain('"status"');
     expect(userPrompt).toContain('"summary"');
   });
 
-  it("uses task content schema when output is task", () => {
-    const { agentConfig, tasksDir } = setup();
+  it("uses task content schema when output is task", async () => {
+    const { agentConfig, taskManager } = setup();
     agentConfig.output = "task";
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).toContain('"type": "task"');
     expect(userPrompt).toContain('"severity"');
     expect(userPrompt).toContain('"title"');
   });
 
-  it("uses generic content schema by default (no output field)", () => {
-    const { agentConfig, tasksDir } = setup();
+  it("uses generic content schema by default (no output field)", async () => {
+    const { agentConfig, taskManager } = setup();
     agentConfig.output = undefined;
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).toContain('"type": "generic"');
     expect(userPrompt).toContain('"status"');
   });
 
-  it("uses task content schema for worktree agent with output task", () => {
-    const { agentConfig, tasksDir } = setup();
+  it("uses task content schema for worktree agent with output task", async () => {
+    const { agentConfig, taskManager } = setup();
     agentConfig.worktree = true;
     agentConfig.output = "task";
-    const { userPrompt } = buildPrompt(agentConfig, tasksDir);
+    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).toContain('"type": "task"');
   });
 });

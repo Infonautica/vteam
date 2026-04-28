@@ -18,6 +18,7 @@ export interface TaskFrontmatter {
 }
 
 export interface TaskFile {
+  id: string;
   filename: string;
   path: string;
   frontmatter: TaskFrontmatter;
@@ -95,6 +96,12 @@ export interface PRReviewContext {
   repoSlug: string;
 }
 
+export interface FilesystemTaskManagerConfig {
+  provider: "filesystem";
+}
+
+export type TaskManagerConfig = FilesystemTaskManagerConfig;
+
 export interface VteamConfig {
   baseBranch: string;
   platform: Platform;
@@ -102,6 +109,7 @@ export interface VteamConfig {
   tasks: {
     maxRetries: number;
   };
+  taskManager: TaskManagerConfig;
 }
 
 export interface CommitMessage {

@@ -19,8 +19,10 @@ import type {
 export function parseTaskFile(filePath: string): TaskFile {
   const raw = readFileSync(filePath, "utf-8");
   const { data, content } = parse(raw);
+  const name = basename(filePath);
   return {
-    filename: basename(filePath),
+    id: name,
+    filename: name,
     path: filePath,
     frontmatter: data as TaskFrontmatter,
     body: content.trim(),

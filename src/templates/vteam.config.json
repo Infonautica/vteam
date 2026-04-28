@@ -4,5 +4,8 @@
   "worktreeDir": ".vteam-worktrees",
   "tasks": {
     "maxRetries": 3
+  },
+  "taskManager": {
+    "provider": "filesystem"
   }
 }

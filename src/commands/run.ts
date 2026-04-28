@@ -10,13 +10,8 @@ import { acquireLock, type FileLock } from "../memory/lock.js";
 import { buildPrompt, buildOnFinishPrompt, buildMemoryCurationPrompt } from "../orchestrator/prompt-builder.js";
 import { runClaudeAgent } from "../orchestrator/agent-runner.js";
 import { parseAgentOutput } from "../orchestrator/output-schema.js";
-import { buildTaskIndex } from "../memory/task-index.js";
-import {
-  severityPriority,
-  createTaskFile,
-  moveTask,
-  updateTaskFrontmatter,
-} from "../tasks/task-file.js";
+import { createTaskManager } from "../tasks/factory.js";
+import { severityPriority } from "../tasks/task-file.js";
 import {
   createWorktree,
   checkoutWorktree,
@@ -123,7 +118,7 @@ async function runAgent(
   focus?: string,
 ): Promise<void> {
   const runId = generateRunId(agent.name);
-  const tasksDir = resolve(cwd, "vteam", "tasks");
+  const taskManager = createTaskManager(config.taskManager, cwd);
   const locksDir = resolve(cwd, "vteam", ".locks");
   mkdirSync(locksDir, { recursive: true });
 
@@ -145,8 +140,7 @@ async function runAgent(
     );
 
     if (agent.input === "task") {
-      const taskIndex = buildTaskIndex(tasksDir);
-      const todoTasks = taskIndex.byStatus.get("todo") ?? [];
+      const todoTasks = await taskManager.list("todo");
       const eligible = todoTasks
         .filter(
           (t) =>
@@ -160,7 +154,7 @@ async function runAgent(
         );
 
       if (eligible.length === 0) {
-        console.log("No tasks in todo/. Nothing to do.");
+        console.log("No eligible tasks. Nothing to do.");
         return;
       }
       task = eligible[0];
@@ -239,9 +233,9 @@ async function runAgent(
     }
 
     console.log("Building prompt...");
-    const { systemPrompt, userPrompt } = buildPrompt(
+    const { systemPrompt, userPrompt } = await buildPrompt(
       agent,
-      tasksDir,
+      taskManager,
       task,
       reviewContext,
       focus,
@@ -278,10 +272,8 @@ async function runAgent(
     runState.commitMessage = output.commitMessage;
 
     if (output.content?.type === "task") {
-      const todoDir = resolve(tasksDir, "todo");
-      mkdirSync(todoDir, { recursive: true });
-      const filename = createTaskFile(todoDir, output.content.body, agent.name);
-      runState.tasksCreated = [filename];
+      const taskId = await taskManager.create(output.content.body, agent.name);
+      runState.tasksCreated = [taskId];
       console.log(`Created task: ${output.content.body.title} (${output.content.body.severity})`);
     }
 
@@ -368,9 +360,7 @@ async function runAgent(
       }
 
       if (task) {
-        const todoDir = resolve(tasksDir, "todo");
-        const doneDir = resolve(tasksDir, "done");
-        moveTask(todoDir, doneDir, task.filename, {
+        await taskManager.move(task.id, "done", {
           status: "done",
           completed: new Date().toISOString(),
           branch: branchName,
@@ -385,7 +375,7 @@ async function runAgent(
       }
       if (task) {
         const currentRetries = task.frontmatter["retry-count"] ?? 0;
-        updateTaskFrontmatter(task.path, {
+        await taskManager.update(task.id, {
           "retry-count": currentRetries + 1,
         });
         console.log(

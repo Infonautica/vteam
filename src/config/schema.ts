@@ -64,6 +64,14 @@ export const memoryFrontmatterSchema = z.object({
   disallowedTools: z.array(z.string()).optional(),
 });
 
+const filesystemTaskManagerSchema = z.object({
+  provider: z.literal("filesystem"),
+});
+
+const taskManagerConfigSchema = z.discriminatedUnion("provider", [
+  filesystemTaskManagerSchema,
+]);
+
 export const vteamConfigSchema = z.object({
   baseBranch: z.string(),
   platform: z.enum(["github", "gitlab"]),
@@ -71,4 +79,5 @@ export const vteamConfigSchema = z.object({
   tasks: z.object({
     maxRetries: z.number().int().nonnegative(),
   }),
+  taskManager: taskManagerConfigSchema.default({ provider: "filesystem" }),
 });

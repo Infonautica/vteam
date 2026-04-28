@@ -48,8 +48,8 @@ The output format instructions are injected into every agent's user prompt by th
 
 Each `claude -p` call is stateless. Memory is external:
 
-- **Task files** — individual markdown files with YAML frontmatter in `todo/` or `done/`. Local-only and gitignored — they are workflow state, not source code. The orchestrator scans these directories at prompt-build time and injects a summary of existing task titles, severities, and statuses into every agent's prompt.
-- **Deduplication** — The prompt builder reads all task files via `buildTaskIndex()` and includes them in the "Existing Tasks" section. Claude avoids reporting duplicates. No hashing. No separate overview file — task files are the single source of truth.
+- **Task files** — individual markdown files with YAML frontmatter in `todo/` or `done/`. Local-only and gitignored — they are workflow state, not source code. The orchestrator reads tasks via the `TaskManager` interface at prompt-build time and injects a summary of existing task titles, severities, and statuses into every agent's prompt.
+- **Deduplication** — The prompt builder calls `taskManager.getIndex()` and includes all task titles in the "Existing Tasks" section. Claude avoids reporting duplicates. No hashing. No separate overview file — task files are the single source of truth.
 - **Per-agent memory** — agents can optionally have a `MEMORY.md` strategy file at `vteam/agents/<name>/MEMORY.md`. When present, the orchestrator injects the agent's accumulated memory (from `vteam/.memory/<agent-name>/store.md`) into the prompt. After the main run, if the agent returned a `memoryUpdate` in its structured output, the orchestrator spawns a small curation agent. The curation agent receives the MEMORY.md instructions (system prompt), the current memory content, and the new update — it returns the complete replacement memory content. The orchestrator writes the result to `.memory/<agent-name>.memory.md`. Memory files are local-only and gitignored. Curation failure is non-fatal.
 
 ### Worktrees
@@ -89,7 +89,19 @@ excludePaths: [node_modules/, dist/]
 - `allowedTools` — Claude Code tools the agent may use (same syntax as the `--allowedTools` CLI flag, e.g. `["Read", "Bash(git *)"]`)
 - `disallowedTools` — Claude Code tools the agent may NOT use (same syntax as `--disallowedTools`)
 
-The frontmatter is validated via zod on agent load. The markdown body (after frontmatter) becomes the system prompt. `vteam.config.json` contains only global settings (baseBranch, platform, worktreeDir, tasks). Add custom agents by creating `vteam/agents/<name>/AGENT.md` — no config changes needed.
+The frontmatter is validated via zod on agent load. The markdown body (after frontmatter) becomes the system prompt. `vteam.config.json` contains global settings (baseBranch, platform, worktreeDir, tasks, taskManager). Add custom agents by creating `vteam/agents/<name>/AGENT.md` — no config changes needed.
+
+### Task manager
+
+All task operations (list, create, move, update) go through the `TaskManager` interface (`src/tasks/task-manager.ts`). The active implementation is selected by the `taskManager` field in `vteam.config.json`:
+
+```json
+{
+  "taskManager": { "provider": "filesystem" }
+}
+```
+
+The `provider` field is a discriminated union validated by zod. Currently only `"filesystem"` is supported (the default). The factory in `src/tasks/factory.ts` instantiates the correct implementation based on the config. To add a new backend: add a config type to the `TaskManagerConfig` union in `types.ts`, add a zod schema variant in `schema.ts`, implement the `TaskManager` interface, and add a `case` in the factory.
 
 ### On-finish hooks
 
@@ -149,7 +161,10 @@ src/
 │   ├── task-index.ts             Scans task dirs, builds title list for dedup
 │   └── lock.ts                   Advisory file locking (atomic mkdir)
 ├── tasks/
-│   └── task-file.ts              Task markdown CRUD (frontmatter + body)
+│   ├── task-manager.ts           TaskManager interface + TaskIndex type
+│   ├── filesystem-manager.ts     Filesystem implementation of TaskManager
+│   ├── factory.ts                Creates TaskManager from config
+│   └── task-file.ts              Low-level task markdown I/O (used by filesystem manager)
 ├── worktree/
 │   └── manager.ts                Git worktree create/remove/list/cleanup
 ├── integrations/

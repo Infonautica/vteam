@@ -1,18 +1,21 @@
 import { resolve } from "node:path";
 import { existsSync, readdirSync } from "node:fs";
-import { buildTaskIndex } from "../memory/task-index.js";
+import { loadConfig } from "../config/load.js";
+import { createTaskManager } from "../tasks/factory.js";
 import { listWorktrees } from "../worktree/manager.js";
 
 export async function statusCommand(): Promise<void> {
   const cwd = process.cwd();
-  const tasksDir = resolve(cwd, "vteam", "tasks");
 
-  if (!existsSync(tasksDir)) {
-    console.error("No vteam/tasks directory found. Run 'vteam init' first.");
+  const vteamDir = resolve(cwd, "vteam");
+  if (!existsSync(vteamDir)) {
+    console.error("No vteam/ directory found. Run 'vteam init' first.");
     process.exit(1);
   }
 
-  const index = buildTaskIndex(tasksDir);
+  const config = loadConfig(cwd);
+  const taskManager = createTaskManager(config.taskManager, cwd);
+  const index = await taskManager.getIndex();
 
   const todo = index.byStatus.get("todo") ?? [];
   const done = index.byStatus.get("done") ?? [];

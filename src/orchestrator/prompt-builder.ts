@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { parse } from "../frontmatter.js";
-import { buildTaskIndex } from "../memory/task-index.js";
+import type { TaskManager } from "../tasks/task-manager.js";
 import type { AgentConfig, TaskFile, PRReviewContext, OnFinishConfig, MemoryConfig, RunOutcome } from "../types.js";
 
 interface PromptParts {
@@ -8,14 +8,14 @@ interface PromptParts {
   userPrompt: string;
 }
 
-export function buildPrompt(
+export async function buildPrompt(
   agent: AgentConfig,
-  tasksDir: string,
+  taskManager: TaskManager,
   task?: TaskFile,
   review?: PRReviewContext,
   focus?: string,
   memoryContent?: string,
-): PromptParts {
+): Promise<PromptParts> {
   const raw = readFileSync(agent.agentMdPath, "utf-8");
   const { content } = parse(raw);
 
@@ -35,7 +35,7 @@ export function buildPrompt(
     );
   }
 
-  const index = buildTaskIndex(tasksDir);
+  const index = await taskManager.getIndex();
   if (index.all.length > 0) {
     const lines = index.all.map((t) => {
       const files = t.frontmatter.files.join(", ");

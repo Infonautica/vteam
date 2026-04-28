@@ -45,6 +45,7 @@ describe("parseTaskFile", () => {
     }, "## Description\n\nSome bug description.");
 
     const task = parseTaskFile(filePath);
+    expect(task.id).toBe("task.md");
     expect(task.filename).toBe("task.md");
     expect(task.frontmatter.title).toBe("Fix the bug");
     expect(task.frontmatter.severity).toBe("high");
@@ -220,6 +221,7 @@ describe("updateTaskFrontmatter", () => {
 describe("isDuplicateTitle", () => {
   const existing: TaskFile[] = [
     {
+      id: "a.md",
       filename: "a.md",
       path: "/a.md",
       frontmatter: {
