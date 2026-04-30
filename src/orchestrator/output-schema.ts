@@ -49,8 +49,19 @@ function stripMarkdownFences(text: string): string {
 
 function extractJson(text: string): string {
   const stripped = stripMarkdownFences(text);
-  const match = stripped.match(/\{[\s\S]*\}/);
-  if (match) return match[0];
+  let braceStart = -1;
+  while ((braceStart = stripped.indexOf("{", braceStart + 1)) !== -1) {
+    const candidate = stripped.slice(braceStart);
+    const lastBrace = candidate.lastIndexOf("}");
+    if (lastBrace === -1) continue;
+    const slice = candidate.slice(0, lastBrace + 1);
+    try {
+      JSON.parse(slice);
+      return slice;
+    } catch {
+      // not valid JSON from this '{', try the next one
+    }
+  }
   return stripped;
 }
 

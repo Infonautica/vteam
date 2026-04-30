@@ -238,6 +238,19 @@ describe("parseAgentOutput", () => {
       );
       expect(output.status).toBe("completed");
     });
+
+    it("skips curly braces in prose before the actual JSON", () => {
+      const json = JSON.stringify({
+        status: "completed",
+        summary: "Reviewed MR #9161.",
+        content: { type: "generic", body: "One finding posted." },
+      });
+      const prose =
+        "Review posted. The URL `/platform/{handle}/workspaces/{id}` is broken.\n\n";
+      const output = parseAgentOutput(prose + json);
+      expect(output.status).toBe("completed");
+      expect(output.summary).toBe("Reviewed MR #9161.");
+    });
   });
 
   describe("rejection of invalid output", () => {
