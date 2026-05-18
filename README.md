@@ -159,7 +159,7 @@ Claude is read-only — it scans and reports. The orchestrator owns all file cre
 ### `vteam run review-responder`
 
 1. Acquires an advisory lock (`vteam/.locks/review-responder.lock`)
-2. Discovers open PRs that have both the `prFilterLabels` (e.g. `vteam`) and the `prTriggerLabel` (e.g. `vteam:changes-requested`) applied
+2. Discovers open PRs that have the `prTriggerLabel` (e.g. `vteam:changes-requested`) applied
 3. Checks out the PR branch into an isolated git worktree
 4. Builds a prompt containing all unresolved review comments from the PR
 5. Spawns `claude -p` in the worktree — Claude addresses the feedback, replies to each comment thread, and returns a commit message as structured JSON
@@ -231,8 +231,7 @@ excludePaths: [node_modules/, dist/]
 | `readOnly`        | `false`    | Run in a worktree but skip commit/push/PR (requires `worktree: true`, incompatible with `autoPR`). Agent runs freely — `readOnly` only prevents the orchestrator from committing/pushing afterward. |
 | `output`          | —          | `"task"` to produce findings that the orchestrator creates as task files. When omitted, the agent uses generic content output. All agents share a unified output schema — `output` controls only the `content` field type. |
 | `input`           | —          | `"task"` to pick from `todo/` queue; `"pr"` to respond to PR review comments (requires `worktree: true`)         |
-| `prFilterLabels`  | —          | Labels used to filter PRs when `input` is `"pr"` (e.g. `[vteam]`)                                                |
-| `prTriggerLabel`  | —          | Transient label signalling "this PR needs work" (e.g. `vteam:changes-requested`); removed after the agent pushes |
+| `prTriggerLabel`  | —          | Label signalling "this PR needs work" (e.g. `vteam:changes-requested`); the orchestrator discovers PRs by this label and removes it after the agent pushes |
 | `autoPR`          | `false`    | Create a pull request after pushing                                                                              |
 | `prCreateLabels`  | —          | Labels applied to created PRs (auto-created if they don't exist)                                                 |
 | `scanPaths`       | —          | Directories to review (empty = entire repo)                                                                      |

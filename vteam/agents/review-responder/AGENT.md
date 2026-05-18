@@ -2,8 +2,6 @@
 model: sonnet
 worktree: true
 input: pr
-prFilterLabels:
-  - vteam
 prTriggerLabel: vteam:changes-requested
 allowedTools:
   - Read

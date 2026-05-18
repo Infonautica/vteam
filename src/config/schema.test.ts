@@ -151,10 +151,10 @@ describe("agentFrontmatterSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts prFilterLabels with input pr", () => {
+  it("accepts prTriggerLabel with input pr", () => {
     const result = agentFrontmatterSchema.safeParse({
       input: "pr",
-      prFilterLabels: ["vteam"],
+      prTriggerLabel: "vteam:changes-requested",
       worktree: true,
     });
     expect(result.success).toBe(true);

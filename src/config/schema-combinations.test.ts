@@ -90,7 +90,6 @@ describe("frontmatter combinations", () => {
       valid({
         worktree: true,
         input: "pr",
-        prFilterLabels: ["vteam"],
         prTriggerLabel: "vteam:changes-requested",
       }));
 

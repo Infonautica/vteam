@@ -164,11 +164,8 @@ async function runAgent(
     }
 
     if (agent.input === "pr") {
-      const searchLabels = [
-        ...(agent.prFilterLabels ?? []),
-        ...(agent.prTriggerLabel ? [agent.prTriggerLabel] : []),
-      ];
-      const pr = findReviewablePR(config.platform, searchLabels, cwd);
+      const labels = agent.prTriggerLabel ? [agent.prTriggerLabel] : [];
+      const pr = findReviewablePR(config.platform, labels, cwd);
       if (!pr) {
         console.log("No PRs need review response. Nothing to do.");
         return;

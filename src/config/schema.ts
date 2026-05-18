@@ -29,7 +29,6 @@ export const agentFrontmatterSchema = z
     readOnly: z.boolean().optional(),
     output: z.enum(["task"]).optional(),
     input: z.enum(["task", "pr"]).optional(),
-    prFilterLabels: z.array(z.string()).optional(),
     prTriggerLabel: z.string().optional(),
     autoPR: z.boolean().optional(),
     prCreateLabels: z.array(z.string()).optional(),

@@ -50,7 +50,6 @@ export interface AgentConfig {
   readOnly?: boolean;
   output?: "task";
   input?: "task" | "pr";
-  prFilterLabels?: string[];
   prTriggerLabel?: string;
   autoPR?: boolean;
   prCreateLabels?: string[];
