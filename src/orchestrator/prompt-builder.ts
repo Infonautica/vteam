@@ -91,6 +91,10 @@ export function buildOnFinishPrompt(
   ];
   sections.push(`## Run Outcome\n\n${outcomeLines.join("\n")}`);
 
+  if (outcome.focus) {
+    sections.push(`## Focus Context\n\n${outcome.focus}`);
+  }
+
   if (outcome.task) {
     sections.push(
       `## Task\n\n- Title: ${outcome.task.title}\n- Severity: ${outcome.task.severity}\n- Files: ${outcome.task.files.join(", ")}`,
@@ -136,12 +140,17 @@ export function buildMemoryCurationPrompt(
   memory: MemoryConfig,
   currentMemory: string,
   memoryUpdate: string,
+  focus?: string,
 ): PromptParts {
   const raw = readFileSync(memory.memoryMdPath, "utf-8");
   const { content } = parse(raw);
   const systemPrompt = content.trim();
 
   const sections: string[] = [];
+
+  if (focus) {
+    sections.push(`## Run Context\n\nThe agent was invoked with this focus:\n\n${focus}`);
+  }
 
   if (currentMemory) {
     sections.push(`## Current Memory\n\n${currentMemory}`);

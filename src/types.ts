@@ -65,6 +65,7 @@ export interface RunOutcome {
   startedAt: string;
   completedAt: string;
   error?: string;
+  focus?: string;
   task?: { title: string; severity: Severity; files: string[] };
   branch?: string;
   prUrl?: string;

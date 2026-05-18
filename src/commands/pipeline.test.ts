@@ -448,6 +448,82 @@ describe("pipeline: combined ON_FINISH + MEMORY", () => {
   });
 });
 
+describe("pipeline: focus flows to ON_FINISH and MEMORY", () => {
+  it("passes focus to ON_FINISH hook", async () => {
+    setupProject({ hasOnFinish: true });
+
+    mockRunClaude
+      .mockResolvedValueOnce(
+        makeResult(
+          JSON.stringify({
+            status: "completed",
+            summary: "Investigated error.",
+            content: { type: "generic", body: "Root cause: missing null check." },
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(makeResult("hook ok"));
+
+    await runCommand("test-agent", { focus: "https://sentry.io/issues/123" });
+
+    expect(mockRunClaude).toHaveBeenCalledTimes(2);
+
+    const onFinishCall = mockRunClaude.mock.calls[1][0];
+    expect(onFinishCall.userPrompt).toContain("Focus Context");
+    expect(onFinishCall.userPrompt).toContain("https://sentry.io/issues/123");
+  });
+
+  it("passes focus to memory curation", async () => {
+    setupProject({ hasMemory: true });
+
+    mockRunClaude
+      .mockResolvedValueOnce(
+        makeResult(
+          JSON.stringify({
+            status: "completed",
+            summary: "Done.",
+            memoryUpdate: "Investigated auth error.",
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(makeResult("Updated memory."));
+
+    await runCommand("test-agent", { focus: "https://sentry.io/issues/456" });
+
+    expect(mockRunClaude).toHaveBeenCalledTimes(2);
+
+    const memoryCall = mockRunClaude.mock.calls[1][0];
+    expect(memoryCall.userPrompt).toContain("Run Context");
+    expect(memoryCall.userPrompt).toContain("https://sentry.io/issues/456");
+  });
+
+  it("omits focus sections when no focus provided", async () => {
+    setupProject({ hasOnFinish: true, hasMemory: true });
+
+    mockRunClaude
+      .mockResolvedValueOnce(
+        makeResult(
+          JSON.stringify({
+            status: "completed",
+            summary: "Done.",
+            content: { type: "generic", body: "Report." },
+            memoryUpdate: "Scanned X.",
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(makeResult("hook ok"))
+      .mockResolvedValueOnce(makeResult("Updated memory."));
+
+    await runCommand("test-agent", {});
+
+    const onFinishCall = mockRunClaude.mock.calls[1][0];
+    expect(onFinishCall.userPrompt).not.toContain("Focus Context");
+
+    const memoryCall = mockRunClaude.mock.calls[2][0];
+    expect(memoryCall.userPrompt).not.toContain("Run Context");
+  });
+});
+
 describe("pipeline: existing memory flows to agent prompt", () => {
   it("injects existing memory into agent's user prompt", async () => {
     setupProject({

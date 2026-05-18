@@ -390,6 +390,7 @@ async function runAgent(
       status: "completed",
       startedAt,
       completedAt,
+      focus,
       task: task ? { title: task.frontmatter.title, severity: task.frontmatter.severity, files: task.frontmatter.files } : undefined,
       branch: branchName,
       prUrl,
@@ -416,6 +417,7 @@ async function runAgent(
       startedAt,
       completedAt: failedAt,
       error: errorMsg,
+      focus,
       task: task ? { title: task.frontmatter.title, severity: task.frontmatter.severity, files: task.frontmatter.files } : undefined,
       branch: branchName,
       reviewedPR: reviewContext ? { number: reviewContext.pr.number, title: reviewContext.pr.title, url: reviewContext.pr.url } : undefined,
@@ -423,7 +425,7 @@ async function runAgent(
   } finally {
     if (runOutcome) {
       await runOnFinishHook(agent, runOutcome, cwd);
-      await runMemoryCuration(agent, memoryUpdate, cwd);
+      await runMemoryCuration(agent, memoryUpdate, focus, cwd);
     }
     if (worktreePath) {
       console.log("Cleaning up worktree...");
@@ -470,6 +472,7 @@ async function runOnFinishHook(
 async function runMemoryCuration(
   agent: AgentConfig,
   memoryUpdate: string | undefined,
+  focus: string | undefined,
   cwd: string,
 ): Promise<void> {
   if (!agent.memory || !memoryUpdate) return;
@@ -488,6 +491,7 @@ async function runMemoryCuration(
     agent.memory,
     currentMemory,
     memoryUpdate,
+    focus,
   );
 
   try {

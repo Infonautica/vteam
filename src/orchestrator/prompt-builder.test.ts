@@ -4,7 +4,7 @@ import { rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
 import { stringify } from "../frontmatter.js";
-import { buildPrompt, buildOnFinishPrompt } from "./prompt-builder.js";
+import { buildPrompt, buildOnFinishPrompt, buildMemoryCurationPrompt } from "./prompt-builder.js";
 import { FilesystemTaskManager } from "../tasks/filesystem-manager.js";
 import type { TaskManager } from "../tasks/task-manager.js";
 import type { AgentConfig, TaskFile, TaskFrontmatter, PRReviewContext, RunOutcome } from "../types.js";
@@ -423,5 +423,78 @@ describe("buildOnFinishPrompt", () => {
     const { userPrompt } = buildOnFinishPrompt({ onFinishMdPath: path }, outcome);
     expect(userPrompt).toContain("## Content");
     expect(userPrompt).toContain("Missing null check");
+  });
+
+  it("includes focus context when present", () => {
+    const path = setupOnFinish();
+    const outcome: RunOutcome = {
+      agent: "sentry-debugger",
+      status: "completed",
+      startedAt: "2026-04-21T10:00:00Z",
+      completedAt: "2026-04-21T10:05:00Z",
+      focus: "https://sentry.io/issues/123",
+    };
+    const { userPrompt } = buildOnFinishPrompt({ onFinishMdPath: path }, outcome);
+    expect(userPrompt).toContain("## Focus Context");
+    expect(userPrompt).toContain("https://sentry.io/issues/123");
+  });
+
+  it("omits focus context when not present", () => {
+    const path = setupOnFinish();
+    const outcome: RunOutcome = {
+      agent: "code-reviewer",
+      status: "completed",
+      startedAt: "2026-04-21T10:00:00Z",
+      completedAt: "2026-04-21T10:05:00Z",
+    };
+    const { userPrompt } = buildOnFinishPrompt({ onFinishMdPath: path }, outcome);
+    expect(userPrompt).not.toContain("Focus Context");
+  });
+});
+
+describe("buildMemoryCurationPrompt", () => {
+  function setupMemory(): string {
+    const memoryPath = resolve(tmp, "MEMORY.md");
+    writeFileSync(
+      memoryPath,
+      "---\nmodel: haiku\n---\n\nKeep a running list of scanned areas.",
+      "utf-8",
+    );
+    return memoryPath;
+  }
+
+  it("includes focus as run context when provided", () => {
+    const path = setupMemory();
+    const { userPrompt } = buildMemoryCurationPrompt(
+      { memoryMdPath: path },
+      "Previously scanned auth/",
+      "Scanned payments/",
+      "https://sentry.io/issues/789",
+    );
+    expect(userPrompt).toContain("## Run Context");
+    expect(userPrompt).toContain("https://sentry.io/issues/789");
+  });
+
+  it("omits run context when no focus provided", () => {
+    const path = setupMemory();
+    const { userPrompt } = buildMemoryCurationPrompt(
+      { memoryMdPath: path },
+      "Previously scanned auth/",
+      "Scanned payments/",
+    );
+    expect(userPrompt).not.toContain("Run Context");
+  });
+
+  it("places run context before current memory", () => {
+    const path = setupMemory();
+    const { userPrompt } = buildMemoryCurationPrompt(
+      { memoryMdPath: path },
+      "Previously scanned auth/",
+      "Scanned payments/",
+      "debug sentry error",
+    );
+    const contextIndex = userPrompt.indexOf("## Run Context");
+    const memoryIndex = userPrompt.indexOf("## Current Memory");
+    expect(contextIndex).toBeLessThan(memoryIndex);
   });
 });
