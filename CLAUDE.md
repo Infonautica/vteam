@@ -136,9 +136,25 @@ Maximum 30 lines — drop oldest entries first.
 
 Supported frontmatter fields: `model`, `allowedTools`, `disallowedTools`. The markdown body becomes the curation agent's system prompt. Memory data is stored in `vteam/.memory/<agent-name>/store.md` (gitignored). The curation agent runs after each agent run and its failure does not affect the agent run's exit status.
 
+## Claude Code skill: `/create-vteam-agent`
+
+A user-scoped Claude Code skill (`skills/create-vteam-agent/SKILL.md`) that interactively scaffolds new vteam agents. It walks through clarifying questions (input mode, output mode, worktree, tools, memory, hooks, model, cron) and generates the `AGENT.md` + optional `MEMORY.md` / `ON_FINISH.md` files.
+
+The skill lives in this repo but is symlinked into `~/.claude/skills/` so it's available from any project. See `skills/SETUP.md` for setup instructions.
+
+**The skill must stay in sync with the codebase.** When any of the following change, update the skill accordingly:
+- Agent frontmatter fields (added, removed, renamed, new validation rules) in `src/config/schema.ts`
+- The `AgentOutput` schema or `content` type union in `src/orchestrator/output-schema.ts`
+- How prompts are assembled in `src/orchestrator/prompt-builder.ts`
+- ON_FINISH.md or MEMORY.md frontmatter fields
+- New agent capabilities or orchestrator behaviors that affect what questions the skill should ask
+
 ## Project structure
 
 ```
+skills/
+└── create-vteam-agent/
+    └── SKILL.md                  Claude Code skill for scaffolding agents (user-scoped via symlink)
 src/
 ├── bin.ts                        CLI entry point (commander)
 ├── types.ts                      All shared TypeScript types
@@ -238,6 +254,8 @@ This file is the primary source of truth for how Claude understands vteam. `READ
 - **New conventions (file naming, locking, task lifecycle)** — update Conventions
 - **New integrations or platform support** — update v1 scope and constraints
 - **Added, moved, or deleted source files** — update Project structure tree
+
+- **Changes to agent frontmatter, output schema, or orchestrator behavior** — update the `create-vteam-agent` skill (`skills/create-vteam-agent/SKILL.md`) so it generates correct agents
 
 Do not update CLAUDE.md or README.md for internal refactors that don't change external behavior, test additions, or bug fixes that don't alter documented behavior.
 

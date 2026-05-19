@@ -428,6 +428,18 @@ vteam uses advisory file locking via atomic `mkdir` (POSIX guarantees this is at
 - **No rollback**: If the refactorer's changes break something, you close the PR. There's no automatic revert mechanism.
 - **Title-based dedup only**: Duplicate detection relies on Claude reading existing task titles in its prompt. Similar but differently-worded findings may slip through.
 
+## Claude Code skill: `/create-vteam-agent`
+
+A user-scoped Claude Code skill that interactively scaffolds new vteam agents. It asks clarifying questions about the agent's purpose, input/output modes, worktree needs, tool permissions, memory, and hooks — then generates the `AGENT.md` (and optionally `MEMORY.md` / `ON_FINISH.md`) files.
+
+The skill source lives in this repo at `skills/create-vteam-agent/SKILL.md`. To make it available globally (from any project), symlink it into your user-scoped skills directory:
+
+```bash
+ln -s /path/to/project-vd/skills/create-vteam-agent ~/.claude/skills/create-vteam-agent
+```
+
+Then invoke it from any project with `/create-vteam-agent`. See `skills/SETUP.md` for full setup details.
+
 ## Development
 
 ```bash
