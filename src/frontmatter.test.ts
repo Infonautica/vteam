@@ -120,10 +120,10 @@ describe("parse", () => {
 
   it("parses block-style arrays", () => {
     const { data } = parse(
-      "---\nscanPaths:\n  - src/\n  - lib/\nexcludePaths:\n  - node_modules/\n  - dist/\n---\n"
+      "---\nallowedTools:\n  - Read\n  - Glob\nprCreateLabels:\n  - vteam\n  - automated\n---\n"
     );
-    expect(data.scanPaths).toEqual(["src/", "lib/"]);
-    expect(data.excludePaths).toEqual(["node_modules/", "dist/"]);
+    expect(data.allowedTools).toEqual(["Read", "Glob"]);
+    expect(data.prCreateLabels).toEqual(["vteam", "automated"]);
   });
 
   it("parses single-item block arrays", () => {
@@ -275,8 +275,6 @@ describe("roundtrip", () => {
       input: "task",
       autoPR: true,
       prCreateLabels: ["vteam", "automated"],
-      scanPaths: ["src/"],
-      excludePaths: ["node_modules/", "dist/"],
     };
     const body = "# Code Reviewer\n\nYou review code.";
     const { data: parsed, content } = parse(stringify(body, data));

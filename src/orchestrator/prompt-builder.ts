@@ -46,17 +46,6 @@ export async function buildPrompt(
     );
   }
 
-  if (agent.scanPaths?.length || agent.excludePaths?.length) {
-    const scopeParts: string[] = [];
-    if (agent.scanPaths?.length) {
-      scopeParts.push(`Focus on these paths: ${agent.scanPaths.join(", ")}`);
-    }
-    if (agent.excludePaths?.length) {
-      scopeParts.push(`Skip these paths: ${agent.excludePaths.join(", ")}`);
-    }
-    sections.push(`## Scope\n\n${scopeParts.join("\n")}`);
-  }
-
   if (task) {
     sections.push(
       `## Your Task\n\nTitle: ${task.frontmatter.title}\nSeverity: ${task.frontmatter.severity}\nFiles: ${task.frontmatter.files.join(", ")}\n\n${task.body}`,

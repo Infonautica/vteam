@@ -219,8 +219,6 @@ worktree: true
 input: task
 autoPR: true
 prCreateLabels: [vteam]
-scanPaths: [src/]
-excludePaths: [node_modules/, dist/]
 ---
 ```
 
@@ -234,8 +232,6 @@ excludePaths: [node_modules/, dist/]
 | `prTriggerLabel`  | —          | Label signalling "this PR needs work" (e.g. `vteam:changes-requested`); the orchestrator discovers PRs by this label and removes it after the agent pushes |
 | `autoPR`          | `false`    | Create a pull request after pushing                                                                              |
 | `prCreateLabels`  | —          | Labels applied to created PRs (auto-created if they don't exist)                                                 |
-| `scanPaths`       | —          | Directories to review (empty = entire repo)                                                                      |
-| `excludePaths`    | —          | Directories to skip                                                                                              |
 | `allowedTools`    | —          | Claude Code tools the agent may use (same syntax as `--allowedTools` CLI flag, e.g. `["Read", "Bash(git *)"]`)   |
 | `disallowedTools` | —          | Claude Code tools the agent may NOT use (same syntax as `--disallowedTools` CLI flag)                            |
 

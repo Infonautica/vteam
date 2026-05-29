@@ -70,8 +70,6 @@ worktree: true
 input: task
 autoPR: true
 prCreateLabels: [vteam]
-scanPaths: [src/]
-excludePaths: [node_modules/, dist/]
 ---
 ```
 
@@ -82,7 +80,6 @@ excludePaths: [node_modules/, dist/]
 - `prTriggerLabel` — label that signals "this PR needs work" (e.g. `vteam:changes-requested`); the orchestrator discovers PRs by this label and removes it after the agent pushes
 - `autoPR` (default: `false`) — create a pull request after pushing
 - `cron` — cron expression (5 fields: minute hour day month weekday) for scheduling via `vteam loop start`
-- `scanPaths` / `excludePaths` — scope injected into the user prompt
 - `model` — Claude model override
 - `prCreateLabels` — labels applied to created PRs
 - `allowedTools` — Claude Code tools the agent may use (same syntax as the `--allowedTools` CLI flag, e.g. `["Read", "Bash(git *)"]`)

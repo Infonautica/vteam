@@ -23,8 +23,6 @@ export const agentFrontmatterSchema = z
           "Invalid cron expression (expected 5 fields: minute hour day month weekday)",
       })
       .optional(),
-    scanPaths: z.array(z.string()).optional(),
-    excludePaths: z.array(z.string()).optional(),
     worktree: z.boolean().optional(),
     readOnly: z.boolean().optional(),
     output: z.enum(["task"]).optional(),

@@ -50,8 +50,6 @@ function setup(): { agentConfig: AgentConfig; taskManager: TaskManager; tasksDir
       name: "test-agent",
       agentMdPath,
       model: "sonnet",
-      scanPaths: ["src/", "lib/"],
-      excludePaths: ["node_modules/"],
     },
     taskManager,
     tasksDir,
@@ -85,26 +83,6 @@ describe("buildPrompt", () => {
     const { agentConfig, taskManager } = setup();
     const { userPrompt } = await buildPrompt(agentConfig, taskManager);
     expect(userPrompt).not.toContain("Existing Tasks");
-  });
-
-  it("includes scan paths in user prompt", async () => {
-    const { agentConfig, taskManager } = setup();
-    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
-    expect(userPrompt).toContain("src/, lib/");
-  });
-
-  it("includes exclude paths in user prompt", async () => {
-    const { agentConfig, taskManager } = setup();
-    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
-    expect(userPrompt).toContain("node_modules/");
-  });
-
-  it("omits scope section when no scan paths configured", async () => {
-    const { agentConfig, taskManager } = setup();
-    agentConfig.scanPaths = undefined;
-    agentConfig.excludePaths = undefined;
-    const { userPrompt } = await buildPrompt(agentConfig, taskManager);
-    expect(userPrompt).not.toContain("## Scope");
   });
 
   it("includes task details when task provided", async () => {
@@ -242,8 +220,8 @@ describe("buildPrompt", () => {
     expect(userPrompt).toContain("## Priority Focus");
     expect(userPrompt).toContain("the invite user functionality");
     const focusIndex = userPrompt.indexOf("## Priority Focus");
-    const scopeIndex = userPrompt.indexOf("## Scope");
-    expect(focusIndex).toBeLessThan(scopeIndex);
+    const outputIndex = userPrompt.indexOf("## Output Format");
+    expect(focusIndex).toBeLessThan(outputIndex);
   });
 
   it("omits focus section when not provided", async () => {
