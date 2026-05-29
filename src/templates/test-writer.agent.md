@@ -4,11 +4,6 @@ worktree: true
 autoPR: true
 prCreateLabels:
   - vteam
-scanPaths:
-  - src/
-excludePaths:
-  - node_modules/
-  - dist/
 allowedTools:
   - Read
   - Edit

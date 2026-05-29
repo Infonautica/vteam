@@ -37,11 +37,7 @@ Use the `AskUserQuestion` tool to ask the following questions. Ask them all in a
 | Analysis only (read-only worktree) | The agent reads code in a worktree but produces only a text report |
 | Generic text output | The agent returns freeform text (report, summary) without a worktree |
 
-**3. Scope** — What paths should the agent scan or focus on?
-
-Ask for `scanPaths` and `excludePaths`. Suggest sensible defaults based on the project (e.g., `src/` for scan, `node_modules/`, `dist/` for exclude).
-
-**4. Tool permissions** — What tools does the agent need?
+**3. Tool permissions** — What tools does the agent need?
 
 Common presets:
 - **Read-only**: `Read`, `Glob`, `Grep`
@@ -52,13 +48,13 @@ Let the user choose a preset and customize.
 
 ### Additional questions (ask in a second round if relevant)
 
-**5. Should the agent have memory?** — If the agent runs repeatedly and would benefit from remembering past runs (areas scanned, false positives, patterns observed), offer to create a `MEMORY.md`.
+**4. Should the agent have memory?** — If the agent runs repeatedly and would benefit from remembering past runs (areas scanned, false positives, patterns observed), offer to create a `MEMORY.md`.
 
-**6. Should the agent have an ON_FINISH hook?** — If the agent's output should trigger a notification or follow-up action (e.g., post to Slack, comment on a PR), offer to create an `ON_FINISH.md`.
+**5. Should the agent have an ON_FINISH hook?** — If the agent's output should trigger a notification or follow-up action (e.g., post to Slack, comment on a PR), offer to create an `ON_FINISH.md`.
 
-**7. Model** — Which Claude model? Default to `sonnet` for most agents. Suggest `opus` for complex reasoning tasks, `haiku` for simple/fast tasks.
+**6. Model** — Which Claude model? Default to `sonnet` for most agents. Suggest `opus` for complex reasoning tasks, `haiku` for simple/fast tasks.
 
-**8. Cron schedule** — Should this agent run on a schedule? If so, ask for a cron expression (5 fields: minute hour day month weekday). Examples: `0 */6 * * *` (every 6 hours), `0 9 * * 1-5` (weekdays at 9am).
+**7. Cron schedule** — Should this agent run on a schedule? If so, ask for a cron expression (5 fields: minute hour day month weekday). Examples: `0 */6 * * *` (every 6 hours), `0 9 * * 1-5` (weekdays at 9am).
 
 ## Step 3 — Derive frontmatter from answers
 
@@ -74,8 +70,6 @@ output: task                      # only if producing task files
 autoPR: true                      # only if code changes should become PRs
 prTriggerLabel: "<label>"         # only if input: pr
 prCreateLabels: [vteam]           # only if autoPR: true
-scanPaths: [...]                  # if applicable
-excludePaths: [...]               # if applicable
 allowedTools: [...]               # always set — principle of least privilege
 disallowedTools: [...]            # only if needed
 ```

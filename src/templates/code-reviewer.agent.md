@@ -1,11 +1,6 @@
 ---
 model: sonnet
 output: task
-scanPaths:
-  - src/
-excludePaths:
-  - node_modules/
-  - dist/
 allowedTools:
   - Read
   - Glob

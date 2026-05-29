@@ -73,8 +73,6 @@ describe("frontmatter combinations", () => {
     it("code-reviewer: output task, no worktree, read-only tools", () =>
       valid({
         output: "task",
-        scanPaths: ["src/"],
-        excludePaths: ["node_modules/"],
         allowedTools: ["Read", "Glob", "Grep"],
       }));
 
@@ -105,7 +103,6 @@ describe("frontmatter combinations", () => {
       valid({
         worktree: true,
         output: "task",
-        scanPaths: ["src/"],
       }));
 
     it("readOnly auditor: worktree + readOnly, no task output", () =>

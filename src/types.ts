@@ -44,8 +44,6 @@ export interface AgentConfig {
   agentMdPath: string;
   model?: string;
   cron?: string;
-  scanPaths?: string[];
-  excludePaths?: string[];
   worktree?: boolean;
   readOnly?: boolean;
   output?: "task";

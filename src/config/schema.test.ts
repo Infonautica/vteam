@@ -85,8 +85,7 @@ describe("agentFrontmatterSchema", () => {
       input: "task",
       autoPR: true,
       prCreateLabels: ["vteam"],
-      scanPaths: ["src/"],
-      excludePaths: ["node_modules/"],
+      allowedTools: ["Read", "Glob"],
     });
     expect(result.success).toBe(true);
   });
