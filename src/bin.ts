@@ -6,6 +6,7 @@ import { runCommand } from "./commands/run.js";
 import { statusCommand } from "./commands/status.js";
 import { cleanCommand } from "./commands/clean.js";
 import { loopStartCommand, loopStatusCommand } from "./commands/loop.js";
+import { skillInstallCommand, skillUninstallCommand } from "./commands/skill.js";
 
 const program = new Command();
 
@@ -49,5 +50,19 @@ loopCmd
   .command("status")
   .description("Show agents with cron schedules and next fire times")
   .action(loopStatusCommand);
+
+const skillCmd = program
+  .command("skill")
+  .description("Manage Claude Code skills from this project");
+
+skillCmd
+  .command("install")
+  .description("Symlink skills from skills/ into ~/.claude/skills/")
+  .action(skillInstallCommand);
+
+skillCmd
+  .command("uninstall")
+  .description("Remove skill symlinks from ~/.claude/skills/")
+  .action(skillUninstallCommand);
 
 program.parse();

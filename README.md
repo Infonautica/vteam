@@ -178,6 +178,16 @@ Displays task counts by status (todo, done), lists in-progress todo items with r
 
 Removes orphaned worktrees and breaks stale locks. Run this after a crash or if a lock is stuck.
 
+### `vteam skill install`
+
+Symlinks all Claude Code skills from the project's `skills/` directory into `~/.claude/skills/`, making them available globally. Each subdirectory of `skills/` that contains a `SKILL.md` file is treated as a skill.
+
+Idempotent — re-running updates stale symlinks and skips already-installed ones.
+
+### `vteam skill uninstall`
+
+Removes the symlinks created by `vteam skill install`. Only removes symlinks — the source files in the repo are untouched.
+
 ## Configuration
 
 ### `vteam.config.json`
@@ -426,13 +436,13 @@ vteam uses advisory file locking via atomic `mkdir` (POSIX guarantees this is at
 
 A user-scoped Claude Code skill that interactively scaffolds new vteam agents. It asks clarifying questions about the agent's purpose, input/output modes, worktree needs, tool permissions, memory, and hooks — then generates the `AGENT.md` (and optionally `MEMORY.md` / `ON_FINISH.md`) files.
 
-The skill source lives in this repo at `skills/create-vteam-agent/SKILL.md`. To make it available globally (from any project), symlink it into your user-scoped skills directory:
+The skill source lives in this repo at `skills/create-vteam-agent/SKILL.md`. To make it available globally, run:
 
 ```bash
-ln -s /path/to/project-vd/skills/create-vteam-agent ~/.claude/skills/create-vteam-agent
+vteam skill install
 ```
 
-Then invoke it from any project with `/create-vteam-agent`. See `skills/SETUP.md` for full setup details.
+Then invoke it from any project with `/create-vteam-agent`. See `skills/SETUP.md` for details.
 
 ## Development
 

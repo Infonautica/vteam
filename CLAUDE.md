@@ -160,7 +160,8 @@ src/
 │   ├── run.ts                    vteam run <agent> — main orchestration flow
 │   ├── loop.ts                   vteam loop — long-lived scheduler process
 │   ├── status.ts                 vteam status — task board overview
-│   └── clean.ts                  vteam clean — prune worktrees, stale locks
+│   ├── clean.ts                  vteam clean — prune worktrees, stale locks
+│   └── skill.ts                  vteam skill install/uninstall — manage Claude Code skill symlinks
 ├── config/
 │   ├── schema.ts                 Zod schemas for config and agent frontmatter
 │   ├── agent.ts                  Agent resolution and listing from AGENT.md files
@@ -209,6 +210,8 @@ vteam status                            # show task board overview
 vteam clean                             # prune worktrees, break stale locks
 vteam loop start                        # start long-lived scheduler for agents with cron patterns
 vteam loop status                       # show agents with cron schedules and next fire times
+vteam skill install                     # symlink skills from skills/ into ~/.claude/skills/
+vteam skill uninstall                   # remove skill symlinks from ~/.claude/skills/
 ```
 
 `vteam loop start` runs a foreground Node.js process that schedules agents based on `cron` patterns in their frontmatter (parsed via `croner`). Each agent run spawns a subprocess (`vteam run <agent>`). If an agent is still running when its next cron tick fires, the tick is skipped. Logs are appended to `vteam/.logs/<agent>.log`. Stop with Ctrl+C.
