@@ -42,16 +42,15 @@ export const agentOutputSchema = z.object({
 });
 
 function stripMarkdownFences(text: string): string {
-  const fenced = text.match(/```(?:json)?\s*\n?([\s\S]*)```/);
+  const fenced = text.match(/^\s*```(?:json)?\s*\n([\s\S]*?)\n\s*```\s*$/);
   if (fenced) return fenced[1].trim();
   return text.trim();
 }
 
-function extractJson(text: string): string {
-  const stripped = stripMarkdownFences(text);
+function findJsonObject(text: string): string | null {
   let braceStart = -1;
-  while ((braceStart = stripped.indexOf("{", braceStart + 1)) !== -1) {
-    const candidate = stripped.slice(braceStart);
+  while ((braceStart = text.indexOf("{", braceStart + 1)) !== -1) {
+    const candidate = text.slice(braceStart);
     const lastBrace = candidate.lastIndexOf("}");
     if (lastBrace === -1) continue;
     const slice = candidate.slice(0, lastBrace + 1);
@@ -62,7 +61,12 @@ function extractJson(text: string): string {
       // not valid JSON from this '{', try the next one
     }
   }
-  return stripped;
+  return null;
+}
+
+function extractJson(text: string): string {
+  const stripped = stripMarkdownFences(text);
+  return findJsonObject(stripped) ?? findJsonObject(text) ?? stripped;
 }
 
 export function parseAgentOutput(resultText: string): AgentOutput {

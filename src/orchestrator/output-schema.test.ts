@@ -228,6 +228,30 @@ describe("parseAgentOutput", () => {
       expect(body?.title).toBe("SQL bug");
     });
 
+    it("handles triple backticks inside JSON string values without outer fence", () => {
+      const json = JSON.stringify({
+        status: "completed",
+        summary: "Found issue.",
+        content: {
+          type: "task",
+          body: {
+            title: "URL encoding",
+            severity: "medium",
+            description: "Broken query",
+            suggestedFix:
+              "Use encodeURIComponent:\n\n```js\n// line 534\nconst url = encodeURIComponent(domain);\n```\n\nThis prevents path traversal.",
+            files: ["index.html:534"],
+          },
+        },
+      });
+      const output = parseAgentOutput(json);
+      expect(output.content?.type).toBe("task");
+      const body =
+        output.content?.type === "task" ? output.content.body : null;
+      expect(body?.suggestedFix).toContain("```js");
+      expect(body?.title).toBe("URL encoding");
+    });
+
     it("extracts JSON from text with leading prose", () => {
       const json = JSON.stringify({
         status: "completed",
