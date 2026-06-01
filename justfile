@@ -2,9 +2,7 @@ default:
     @just --list
 
 build:
-    npx tsc
-    rm -rf dist/templates
-    cp -r src/templates dist/templates
+    npm run build
 
 dev *args:
     npx tsx src/bin.ts {{args}}

@@ -7,7 +7,7 @@
     "vteam": "./dist/bin.js"
   },
   "scripts": {
-    "build": "tsc && cp -r src/templates dist/templates",
+    "build": "tsc && rm -rf dist/templates && cp -r src/templates dist/templates",
     "dev": "tsx src/bin.ts",
     "lint": "eslint src/",
     "test": "vitest run",
