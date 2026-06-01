@@ -1,41 +1,38 @@
-# Setting up the create-vteam-agent skill
+# Setting up Claude Code skills from this repo
 
-The `create-vteam-agent` skill source lives in this repo (`skills/create-vteam-agent/SKILL.md`) but needs to be available as a **user-scoped** Claude Code skill so it works from any project.
+Skills in `skills/` (e.g. `create-vteam-agent`) need to be available as **user-scoped** Claude Code skills so they work from any project.
 
-## Symlink setup
-
-Create a symlink from your user-scoped skills directory to this repo:
+## Install
 
 ```bash
-ln -s /Users/leoniddanilov/Desktop/Projects/project-vd/skills/create-vteam-agent ~/.claude/skills/create-vteam-agent
+vteam skill install
 ```
 
-That's it. Claude Code follows symlinks when loading skills, so changes you make here are immediately available everywhere.
+This symlinks every skill directory under `skills/` into `~/.claude/skills/`. Claude Code follows symlinks, so changes you make here are immediately available everywhere.
 
 ## Verify
 
-From any project directory, run Claude Code and type `/create-vteam-agent`. The skill should appear in the skill list.
+From any project directory, run Claude Code and type `/<skill-name>` (e.g. `/create-vteam-agent`). The skill should appear in the skill list.
 
 ## How it works
 
 - `~/.claude/skills/` is where Claude Code loads user-scoped skills from
 - Each skill is a directory containing a `SKILL.md` file
-- The symlink makes Claude Code see `~/.claude/skills/create-vteam-agent/SKILL.md` which points to the real file in this repo
+- The symlink makes Claude Code see `~/.claude/skills/<skill-name>/SKILL.md` which points to the real file in this repo
 - Edits in this repo are reflected immediately — no copy step, no rebuild
 
 ## If you move this repo
 
-The symlink uses an absolute path. If you relocate the repo, recreate the symlink:
+The symlinks use absolute paths. If you relocate the repo, re-run:
 
 ```bash
-rm ~/.claude/skills/create-vteam-agent
-ln -s /new/path/to/project-vd/skills/create-vteam-agent ~/.claude/skills/create-vteam-agent
+vteam skill install
 ```
 
-## Removing the skill
+## Removing skills
 
 ```bash
-rm ~/.claude/skills/create-vteam-agent
+vteam skill uninstall
 ```
 
-This only removes the symlink — the source files in this repo are untouched.
+This only removes the symlinks — the source files in this repo are untouched.
