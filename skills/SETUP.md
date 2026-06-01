@@ -39,7 +39,3 @@ rm ~/.claude/skills/create-vteam-agent
 ```
 
 This only removes the symlink — the source files in this repo are untouched.
-
-## Note on the skills git repo
-
-Your `~/.claude/skills/` is tracked as a separate git repo (`Infonautica/skills`). The symlink will appear as a new entry there. You can commit it if you want the link tracked, but the symlink target is an absolute path specific to this machine — keep that in mind if you share the skills repo across machines.
