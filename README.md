@@ -1,7 +1,5 @@
 # vteam
 
-> **Alpha Stage.** APIs, configuration formats, and CLI commands may change.
-
 A virtual development team framework that orchestrates AI agents powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to autonomously review codebases and implement fixes.
 
 You define agent prompts, triage findings, and review pull requests. vteam handles everything else: scheduling agent runs, managing task lifecycle, isolating work in git worktrees, and creating branches and pull requests.
@@ -44,7 +42,7 @@ The orchestrator never reasons about code. Claude never creates task files, comm
 
 ## Installation
 
-vteam is in pre-alpha and not yet published to npm. Run it from source:
+vteam is not yet published to npm. Run it from source:
 
 ```bash
 git clone git@github.com:Infonautica/vteam.git
